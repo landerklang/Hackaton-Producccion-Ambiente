@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-const API_URL = 'http://10.0.2.2:3000/api/producers/ai-profile';
+const API_HOST = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
+const API_URL = `http://${API_HOST}:3000/api/producers/ai-profile`;
 
 const QUESTIONS = [
   '¿Cómo se llama tu emprendimiento o cómo querés que aparezca tu nombre?',
