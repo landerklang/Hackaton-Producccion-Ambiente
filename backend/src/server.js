@@ -3,12 +3,16 @@ require('dotenv').config();
 const cors = require('cors');
 const express = require('express');
 const connectDB = require('./config/db');
+const { generateProducerProfile, generateProductFromText } = require('./controllers/productController');
 
 const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
+
+app.post('/api/products/ai-generate', generateProductFromText);
+app.post('/api/producers/ai-profile', generateProducerProfile);
 
 app.get('/api/health', (req, res) => {
 	res.status(200).json({ status: 'ok' });
