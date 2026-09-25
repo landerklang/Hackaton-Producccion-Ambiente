@@ -84,7 +84,7 @@ const NAV_ITEMS = [
   { label: 'Perfil', icon: '👤' },
 ];
 
-export default function HomeScreen() {
+export default function HomeScreen({ navigation }) {
   const [allProducts] = useState(INITIAL_PRODUCTS);
   const [filteredProducts, setFilteredProducts] = useState(INITIAL_PRODUCTS);
   const [searchQuery, setSearchQuery] = useState('');
@@ -117,6 +117,11 @@ export default function HomeScreen() {
               <Pressable
                 accessibilityRole="button"
                 key={item.label}
+                onPress={() => {
+                  if (item.label === 'Perfil') {
+                    navigation.navigate('Profile');
+                  }
+                }}
                 style={[styles.headerButton, item.primary && styles.primaryHeaderButton]}
               >
                 <Text

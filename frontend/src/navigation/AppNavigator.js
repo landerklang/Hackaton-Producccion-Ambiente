@@ -6,9 +6,11 @@ import AuthScreen from "../screens/AuthScreen";
 import HomeScreen from "../screens/HomeScreen";
 import AIPanelScreen from "../screens/AIPanelScreen";
 
-const Stack = createNativeStackNavigator();
+const RootStack = createNativeStackNavigator();
+const AuthStack = createNativeStackNavigator();
+const MainStack = createNativeStackNavigator();
 
-function Navigator() {
+function AuthNavigator({ setIsAuthenticated }) {
   return (
     <Stack.Navigator
       initialRouteName="Landing"
