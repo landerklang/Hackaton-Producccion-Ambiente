@@ -4,6 +4,7 @@ const cors = require('cors');
 const express = require('express');
 const connectDB = require('./config/db');
 const aiRoutes = require('./modules/ai/aiRoutes');
+const producerRoutes = require('./modules/producers/producerRoutes');
 const productRoutes = require('./modules/products/productRoutes');
 
 const app = express();
@@ -13,6 +14,7 @@ app.use(cors());
 app.use(express.json());
 
 app.use('/api', aiRoutes);
+app.use('/api/producers', producerRoutes);
 app.use('/api/products', productRoutes);
 
 app.get('/api/health', (req, res) => {
