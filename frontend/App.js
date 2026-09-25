@@ -4,7 +4,9 @@ import { NavigationContainer } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import AppNavigator from './src/navigation/AppNavigator';
 
-const normalizeRole = (role) => (role === 'producer' ? 'productor' : 'comprador');
+const normalizeRole = (role) => (
+  role === 'producer' || role === 'productor' ? 'productor' : 'comprador'
+);
 const API_HOST = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
 const ME_API_URL = `http://${API_HOST}:3000/api/auth/me`;
 
@@ -43,7 +45,7 @@ export default function App() {
           id: authenticatedUser.id,
           name: authenticatedUser.name,
           email: authenticatedUser.email,
-          role: normalizeRole(role),
+          role: normalizeRole(authenticatedUser.role || role),
           hasBusiness: hasBusiness === 'true',
         });
       } catch (error) {
