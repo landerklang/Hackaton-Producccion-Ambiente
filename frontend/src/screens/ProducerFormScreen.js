@@ -5,6 +5,7 @@ import { ActivityIndicator, Platform, Pressable, SafeAreaView, ScrollView, Style
 const API_HOST = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
 const PROFILE_API_URL = `http://${API_HOST}:3000/api/producers/ai-profile`;
 const GUIDE_API_URL = `http://${API_HOST}:3000/api/ai/entrepreneur-guide`;
+const PRODUCT_API_URL = `http://${API_HOST}:3000/api/products/ai-generate`;
 const PUBLISH_API_URL = `http://${API_HOST}:3000/api/producers`;
 
 export default function ProducerFormScreen({ navigation }) {
@@ -17,11 +18,12 @@ export default function ProducerFormScreen({ navigation }) {
   const [profileText, setProfileText] = useState('');
   const [guide, setGuide] = useState(null);
   const [result, setResult] = useState(null);
+  const [mode, setMode] = useState('profile');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const buildMessages = () => {
-    const base = [
+    return [
       { role: 'user', content: `Nombre: ${name || 'no indicado'}` },
       { role: 'user', content: `Categoría: ${category || 'no indicada'}` },
       { role: 'user', content: `Descripción: ${description || 'no indicada'}` },
@@ -29,8 +31,6 @@ export default function ProducerFormScreen({ navigation }) {
       { role: 'user', content: `WhatsApp: ${whatsappNumber || 'no indicado'}` },
       { role: 'user', content: `Instagram: ${instagram || 'no indicado'}` },
     ];
-
-    return base;
   };
 
   const handleGenerateProfile = async () => {
@@ -39,6 +39,7 @@ export default function ProducerFormScreen({ navigation }) {
       return;
     }
 
+    setMode('profile');
     setLoading(true);
     setError('');
     setGuide(null);
@@ -60,8 +61,10 @@ export default function ProducerFormScreen({ navigation }) {
       return;
     }
 
+    setMode('guide');
     setLoading(true);
     setError('');
+    setResult(null);
 
     try {
       const response = await axios.post(GUIDE_API_URL, {
@@ -73,6 +76,35 @@ export default function ProducerFormScreen({ navigation }) {
       setGuide(response.data);
     } catch (requestError) {
       setError(requestError.response?.data?.error || 'No pudimos generar la guía de emprendimiento.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGenerateProduct = async () => {
+    if (!description.trim()) {
+      setError('Escribí la idea del producto para generarlo con IA.');
+      return;
+    }
+
+    setMode('product');
+    setLoading(true);
+    setError('');
+    setGuide(null);
+
+    try {
+      const response = await axios.post(PRODUCT_API_URL, {
+        text: description,
+      });
+
+      setResult({
+        title: response.data.title || name || 'Producto',
+        description: response.data.description || description,
+        tags: response.data.tags || [],
+        price: response.data.price || 'Consultar',
+      });
+    } catch (requestError) {
+      setError(requestError.response?.data?.error || 'No pudimos generar el producto con IA.');
     } finally {
       setLoading(false);
     }
@@ -113,6 +145,30 @@ export default function ProducerFormScreen({ navigation }) {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.eyebrow}>Perfil de productor</Text>
         <Text style={styles.title}>Prepará tu presencia local</Text>
+
+        <View style={styles.modeRow}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => setMode('profile')}
+            style={({ pressed }) => [styles.modeButton, mode === 'profile' && styles.modeButtonActive, pressed && styles.modePressed]}
+          >
+            <Text style={[styles.modeText, mode === 'profile' && styles.modeTextActive]}>Perfil</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => setMode('product')}
+            style={({ pressed }) => [styles.modeButton, mode === 'product' && styles.modeButtonActive, pressed && styles.modePressed]}
+          >
+            <Text style={[styles.modeText, mode === 'product' && styles.modeTextActive]}>Producto</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => setMode('guide')}
+            style={({ pressed }) => [styles.modeButton, mode === 'guide' && styles.modeButtonActive, pressed && styles.modePressed]}
+          >
+            <Text style={[styles.modeText, mode === 'guide' && styles.modeTextActive]}>Guía</Text>
+          </Pressable>
+        </View>
 
         <TextInput
           onChangeText={setName}
@@ -173,7 +229,16 @@ export default function ProducerFormScreen({ navigation }) {
             onPress={handleGenerateProfile}
             style={({ pressed }) => [styles.secondaryButton, pressed && styles.secondaryButtonPressed, loading && styles.buttonDisabled]}
           >
-            <Text style={styles.secondaryButtonText}>Generar perfil con IA</Text>
+            <Text style={styles.secondaryButtonText}>Generar perfil</Text>
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            disabled={loading}
+            onPress={handleGenerateProduct}
+            style={({ pressed }) => [styles.secondaryButton, pressed && styles.secondaryButtonPressed, loading && styles.buttonDisabled]}
+          >
+            <Text style={styles.secondaryButtonText}>Generar producto</Text>
           </Pressable>
 
           <Pressable
@@ -182,7 +247,7 @@ export default function ProducerFormScreen({ navigation }) {
             onPress={handleGenerateGuide}
             style={({ pressed }) => [styles.secondaryButton, pressed && styles.secondaryButtonPressed, loading && styles.buttonDisabled]}
           >
-            <Text style={styles.secondaryButtonText}>Guía de emprendimiento</Text>
+            <Text style={styles.secondaryButtonText}>Guía general</Text>
           </Pressable>
         </View>
 
@@ -190,15 +255,30 @@ export default function ProducerFormScreen({ navigation }) {
 
         {result ? (
           <View style={styles.previewBox}>
-            <Text style={styles.previewTitle}>Perfil sugerido</Text>
-            <Text style={styles.previewLabel}>Nombre</Text>
-            <Text style={styles.previewText}>{result.name || name}</Text>
-            <Text style={styles.previewLabel}>Categoría</Text>
-            <Text style={styles.previewText}>{result.category || category}</Text>
-            <Text style={styles.previewLabel}>Descripción</Text>
-            <Text style={styles.previewText}>{result.profileText || result.description || description}</Text>
-            <Text style={styles.previewLabel}>Contacto</Text>
-            <Text style={styles.previewText}>{[whatsappNumber, instagram].filter(Boolean).join(' · ') || 'Sin contacto cargado'}</Text>
+            <Text style={styles.previewTitle}>{mode === 'product' ? 'Producto sugerido' : mode === 'guide' ? 'Orientación' : 'Perfil sugerido'}</Text>
+            {mode === 'product' ? (
+              <>
+                <Text style={styles.previewLabel}>Título</Text>
+                <Text style={styles.previewText}>{result.title || 'Sin título'}</Text>
+                <Text style={styles.previewLabel}>Descripción</Text>
+                <Text style={styles.previewText}>{result.description || 'Sin descripción'}</Text>
+                <Text style={styles.previewLabel}>Tags</Text>
+                <Text style={styles.previewText}>{Array.isArray(result.tags) ? result.tags.join(', ') : 'Sin tags'}</Text>
+                <Text style={styles.previewLabel}>Precio</Text>
+                <Text style={styles.previewText}>{result.price || 'Consultar'}</Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.previewLabel}>Nombre</Text>
+                <Text style={styles.previewText}>{result.name || name}</Text>
+                <Text style={styles.previewLabel}>Categoría</Text>
+                <Text style={styles.previewText}>{result.category || category}</Text>
+                <Text style={styles.previewLabel}>Descripción</Text>
+                <Text style={styles.previewText}>{result.profileText || result.description || description}</Text>
+                <Text style={styles.previewLabel}>Contacto</Text>
+                <Text style={styles.previewText}>{[whatsappNumber, instagram].filter(Boolean).join(' · ') || 'Sin contacto cargado'}</Text>
+              </>
+            )}
           </View>
         ) : null}
 
@@ -260,6 +340,32 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '800',
     marginBottom: 16,
+  },
+  modeRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 4,
+    marginBottom: 12,
+  },
+  modeButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: '#E7F3EB',
+    alignItems: 'center',
+  },
+  modeButtonActive: {
+    backgroundColor: '#18864B',
+  },
+  modeText: {
+    color: '#0F5F38',
+    fontWeight: '800',
+  },
+  modeTextActive: {
+    color: '#FFFFFF',
+  },
+  modePressed: {
+    opacity: 0.9,
   },
   input: {
     minHeight: 52,

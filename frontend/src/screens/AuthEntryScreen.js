@@ -27,23 +27,6 @@ export default function AuthEntryScreen({ navigation }) {
           <Text style={styles.secondaryButtonText}>Crear cuenta</Text>
         </Pressable>
 
-        <View style={styles.optionRow}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => navigation.navigate('ProducerForm')}
-            style={({ pressed }) => [styles.roleButton, pressed && styles.roleButtonPressed]}
-          >
-            <Text style={styles.roleButtonText}>Soy productor</Text>
-          </Pressable>
-
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => navigation.navigate('Home')}
-            style={({ pressed }) => [styles.roleButton, pressed && styles.roleButtonPressed]}
-          >
-            <Text style={styles.roleButtonText}>Explorar</Text>
-          </Pressable>
-        </View>
       </View>
     </SafeAreaView>
   );
@@ -115,26 +98,5 @@ const styles = StyleSheet.create({
   },
   buttonPressed: {
     backgroundColor: '#12683A',
-  },
-  optionRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 18,
-  },
-  roleButton: {
-    flex: 1,
-    backgroundColor: '#F3F7F5',
-    borderRadius: 12,
-    paddingVertical: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#D9E1DC',
-  },
-  roleButtonPressed: {
-    backgroundColor: '#E7F3EB',
-  },
-  roleButtonText: {
-    color: '#172033',
-    fontWeight: '700',
   },
 });
