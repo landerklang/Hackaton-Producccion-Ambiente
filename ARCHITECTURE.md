@@ -405,6 +405,28 @@ DELETE /api/favorites/:id
 
 ## 7. Flujo principal de la aplicacion
 
+### Flujo de interfaz MVP
+
+```text
+AuthEntryScreen
+  -> LoginScreen
+  -> RegisterScreen
+     -> ProducerFormScreen
+     -> HomeScreen
+  -> ProducerFormScreen
+  -> HomeScreen
+  -> AIPanelScreen
+```
+
+La entrada a la app se hace desde una pantalla de acceso con botones de accion claros:
+
+- Entrar
+- Crear cuenta
+- Soy productor
+- Explorar catálogo
+
+La navegacion debe quedar definida por roles y objetivos, no por pantallas aisladas. Cada flujo debe terminar en una accion concreta: autenticarse, crear perfil, publicar o buscar localmente.
+
 ### Exploracion publica
 
 ```text

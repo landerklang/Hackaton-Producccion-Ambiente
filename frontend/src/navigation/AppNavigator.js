@@ -1,8 +1,13 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import HomeScreen from '../screens/HomeScreen';
 import AIPanelScreen from '../screens/AIPanelScreen';
+import AuthEntryScreen from '../screens/AuthEntryScreen';
+import LoginScreen from '../screens/LoginScreen';
+import RegisterScreen from '../screens/RegisterScreen';
+import BuyerFormScreen from '../screens/BuyerFormScreen';
+import ProducerFormScreen from '../screens/ProducerFormScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -18,15 +23,27 @@ function Navigator() {
       }}
     >
       <Stack.Screen
+        name="AuthEntry"
+        component={AuthEntryScreen}
+        options={{ title: 'Hub Productivo' }}
+      />
+      <Stack.Screen
         name="Home"
         component={HomeScreen}
         options={({ navigation }) => ({
           title: 'Hub Productivo',
           headerRight: () => (
-            <Button title="IA" onPress={() => navigation.navigate('AIPanel')} />
+            <View style={styles.headerActions}>
+              <Button title="IA" onPress={() => navigation.navigate('AIPanel')} />
+              <Button title="Entrar" onPress={() => navigation.navigate('AuthEntry')} />
+            </View>
           ),
         })}
       />
+      <Stack.Screen name="Login" component={LoginScreen} options={{ title: 'Ingresar' }} />
+      <Stack.Screen name="Register" component={RegisterScreen} options={{ title: 'Crear cuenta' }} />
+      <Stack.Screen name="BuyerForm" component={BuyerFormScreen} options={{ title: 'Perfil del comprador' }} />
+      <Stack.Screen name="ProducerForm" component={ProducerFormScreen} options={{ title: 'Perfil del productor' }} />
       <Stack.Screen name="AIPanel" component={AIPanelScreen} options={{ title: 'Catálogo con IA' }} />
     </Stack.Navigator>
   );
@@ -41,6 +58,11 @@ function Button({ title, onPress }) {
 }
 
 const styles = StyleSheet.create({
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
   headerButton: {
     paddingHorizontal: 12,
     paddingVertical: 8,
