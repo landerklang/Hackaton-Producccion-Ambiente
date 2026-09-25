@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ActivityIndicator, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 const API_HOST = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
 const API_URL = `http://${API_HOST}:3000/api/auth/register`;
 
-export default function RegisterScreen({ navigation }) {
+export default function RegisterScreen({ navigation, setIsAuthenticated }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -24,8 +25,15 @@ export default function RegisterScreen({ navigation }) {
 
     try {
       const response = await axios.post(API_URL, { name, email, password, role });
+      await AsyncStorage.setItem('userToken', response.data.token || 'dummy-token');
+      setIsAuthenticated(true);
+
+      navigation.getRoot()?.reset({
+        index: 0,
+        routes: [{ name: 'Main' }],
+      });
+
       console.log('Register success:', response.data);
-      navigation.navigate(role === 'producer' ? 'ProducerForm' : 'BuyerForm');
     } catch (requestError) {
       setError(requestError.response?.data?.error || 'No pudimos crear la cuenta.');
     } finally {
@@ -35,69 +43,84 @@ export default function RegisterScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={styles.eyebrow}>Crear cuenta</Text>
-        <Text style={styles.title}>Armemos tu perfil</Text>
-
-        <TextInput
-          onChangeText={setName}
-          placeholder="Nombre completo"
-          placeholderTextColor="#718096"
-          style={styles.input}
-          value={name}
-        />
-
-        <TextInput
-          autoCapitalize="none"
-          autoCorrect={false}
-          keyboardType="email-address"
-          onChangeText={setEmail}
-          placeholder="Email"
-          placeholderTextColor="#718096"
-          style={styles.input}
-          value={email}
-        />
-
-        <TextInput
-          autoCapitalize="none"
-          autoCorrect={false}
-          onChangeText={setPassword}
-          placeholder="Contraseña"
-          placeholderTextColor="#718096"
-          secureTextEntry
-          style={styles.input}
-          value={password}
-        />
-
-        <Text style={styles.sectionTitle}>Tipo de usuario</Text>
-        <View style={styles.roleRow}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.formWrapper}>
           <Pressable
+            accessibilityLabel="Volver a la portada"
             accessibilityRole="button"
-            onPress={() => setRole('buyer')}
-            style={({ pressed }) => [styles.roleButton, role === 'buyer' && styles.roleButtonActive, pressed && styles.rolePressed]}
+            onPress={() => navigation.navigate('AuthEntry')}
+            style={({ pressed }) => [styles.backButton, pressed && styles.backButtonPressed]}
           >
-            <Text style={[styles.roleText, role === 'buyer' && styles.roleTextActive]}>Comprador</Text>
+            <Text style={styles.backButtonText}>← Volver a la portada</Text>
           </Pressable>
+          <Text style={styles.eyebrow}>Crear cuenta</Text>
+          <Text style={styles.title}>Armemos tu perfil</Text>
+          <Text style={styles.subtitle}>Sumate a la comunidad de Tierra y Artesanía.</Text>
+
+          <TextInput
+            onChangeText={setName}
+            placeholder="Nombre completo"
+            placeholderTextColor="#D0D0D0"
+            style={styles.input}
+            value={name}
+          />
+
+          <TextInput
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+            onChangeText={setEmail}
+            placeholder="Email"
+            placeholderTextColor="#D0D0D0"
+            style={styles.input}
+            value={email}
+          />
+
+          <TextInput
+            autoCapitalize="none"
+            autoCorrect={false}
+            onChangeText={setPassword}
+            placeholder="Contraseña"
+            placeholderTextColor="#D0D0D0"
+            secureTextEntry
+            style={styles.input}
+            value={password}
+          />
+
+          <Text style={styles.sectionTitle}>Tipo de usuario</Text>
+          <View style={styles.roleRow}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setRole('buyer')}
+              style={({ pressed }) => [styles.roleButton, role === 'buyer' && styles.roleButtonActive, pressed && styles.rolePressed]}
+            >
+              <Text style={[styles.roleText, role === 'buyer' && styles.roleTextActive]}>Comprador</Text>
+            </Pressable>
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setRole('producer')}
+              style={({ pressed }) => [styles.roleButton, role === 'producer' && styles.roleButtonActive, pressed && styles.rolePressed]}
+            >
+              <Text style={[styles.roleText, role === 'producer' && styles.roleTextActive]}>Productor</Text>
+            </Pressable>
+          </View>
+
+          {error ? <Text style={styles.error}>{error}</Text> : null}
 
           <Pressable
             accessibilityRole="button"
-            onPress={() => setRole('producer')}
-            style={({ pressed }) => [styles.roleButton, role === 'producer' && styles.roleButtonActive, pressed && styles.rolePressed]}
+            disabled={loading}
+            onPress={handleRegister}
+            style={({ pressed }) => [styles.button, pressed && styles.buttonPressed, loading && styles.buttonDisabled]}
           >
-            <Text style={[styles.roleText, role === 'producer' && styles.roleTextActive]}>Productor</Text>
+            {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.buttonText}>Registrarse</Text>}
           </Pressable>
         </View>
-
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-
-        <Pressable
-          accessibilityRole="button"
-          disabled={loading}
-          onPress={handleRegister}
-          style={({ pressed }) => [styles.button, pressed && styles.buttonPressed, loading && styles.buttonDisabled]}
-        >
-          {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.buttonText}>Crear cuenta</Text>}
-        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
@@ -106,24 +129,56 @@ export default function RegisterScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F7F6',
+    backgroundColor: '#242424',
   },
   content: {
-    padding: 20,
-    paddingTop: 32,
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+  },
+  formWrapper: {
+    width: '100%',
+    maxWidth: 450,
+    alignSelf: 'center',
+    backgroundColor: '#2E2E2E',
+    borderWidth: 1,
+    borderColor: '#555555',
+    borderRadius: 20,
+    padding: 24,
+  },
+  backButton: {
+    alignSelf: 'flex-start',
+    borderRadius: 8,
+    marginBottom: 18,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  backButtonPressed: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  backButtonText: {
+    color: '#C89F7A',
+    fontSize: 14,
+    fontWeight: '800',
   },
   eyebrow: {
-    color: '#18864B',
+    color: '#C89F7A',
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.7,
     textTransform: 'uppercase',
   },
   title: {
-    marginTop: 8,
-    color: '#172033',
-    fontSize: 28,
+    marginTop: 10,
+    color: '#FFFFFF',
+    fontSize: 30,
     fontWeight: '800',
+    marginBottom: 8,
+  },
+  subtitle: {
+    color: '#C89F7A',
+    fontSize: 14,
     marginBottom: 18,
   },
   input: {
@@ -131,15 +186,15 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingHorizontal: 14,
     borderWidth: 1,
-    borderColor: '#D9E1DC',
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
+    borderColor: '#555555',
+    borderRadius: 8,
+    backgroundColor: '#3A3A3A',
     fontSize: 15,
-    color: '#172033',
+    color: '#FFFFFF',
   },
   sectionTitle: {
     marginTop: 18,
-    color: '#172033',
+    color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '800',
   },
@@ -152,21 +207,21 @@ const styles = StyleSheet.create({
   roleButton: {
     flex: 1,
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#D9E1DC',
-    backgroundColor: '#FFFFFF',
+    borderColor: '#555555',
+    backgroundColor: '#3A3A3A',
     alignItems: 'center',
   },
   roleButtonActive: {
-    backgroundColor: '#18864B',
-    borderColor: '#18864B',
+    backgroundColor: '#C89F7A',
+    borderColor: '#C89F7A',
   },
   rolePressed: {
     opacity: 0.9,
   },
   roleText: {
-    color: '#172033',
+    color: '#FFFFFF',
     fontWeight: '700',
   },
   roleTextActive: {
@@ -174,17 +229,17 @@ const styles = StyleSheet.create({
   },
   button: {
     marginTop: 22,
-    backgroundColor: '#18864B',
-    borderRadius: 12,
+    backgroundColor: '#C89F7A',
+    borderRadius: 8,
     height: 52,
     alignItems: 'center',
     justifyContent: 'center',
   },
   buttonPressed: {
-    backgroundColor: '#12683A',
+    backgroundColor: '#B8885C',
   },
   buttonDisabled: {
-    opacity: 0.7,
+    opacity: 0.75,
   },
   buttonText: {
     color: '#FFFFFF',
@@ -193,7 +248,7 @@ const styles = StyleSheet.create({
   },
   error: {
     marginTop: 14,
-    color: '#B42318',
+    color: '#F4B4B4',
     fontSize: 14,
     lineHeight: 20,
   },
