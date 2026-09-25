@@ -285,12 +285,32 @@ export default function ProducerFormScreen({ navigation }) {
         {guide ? (
           <View style={styles.previewBox}>
             <Text style={styles.previewTitle}>Guía de emprendimiento</Text>
+            <Text style={styles.previewLabel}>Categoría</Text>
+            <Text style={styles.previewText}>{guide.category || 'General'}</Text>
+            <Text style={styles.previewLabel}>Idea</Text>
+            <Text style={styles.previewText}>{guide.ideaSummary || 'Sin resumen disponible.'}</Text>
+            <Text style={styles.previewLabel}>Posicionamiento</Text>
             <Text style={styles.previewText}>{guide.positioning || 'Sin orientación disponible.'}</Text>
-            <View style={{ marginTop: 10 }}>
+            <Text style={styles.previewLabel}>Checklist rápido</Text>
+            <View style={{ marginTop: 6 }}>
               {guide.quickChecklist?.map((item, index) => (
                 <Text key={`check-${index}`} style={styles.bullet}>{'• ' + item}</Text>
               ))}
             </View>
+            <Text style={styles.previewLabel}>Siguientes pasos</Text>
+            <View style={{ marginTop: 6 }}>
+              {guide.nextSteps?.map((item, index) => (
+                <Text key={`next-${index}`} style={styles.bullet}>{'• ' + item}</Text>
+              ))}
+            </View>
+            <Text style={styles.previewLabel}>Fuentes</Text>
+            <View style={{ marginTop: 6 }}>
+              {guide.officialSources?.map((item, index) => (
+                <Text key={`source-${index}`} style={styles.bullet}>{'• ' + item}</Text>
+              ))}
+            </View>
+            <Text style={styles.previewLabel}>Advertencia</Text>
+            <Text style={styles.previewText}>{guide.warning || 'Orientación general.'}</Text>
           </View>
         ) : null}
 
