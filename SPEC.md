@@ -1,69 +1,83 @@
 # Project Specification: Hub Productivo Formosa (Hackathon MVP)
 
 ## 1. Context & Objective
-A 24-hour React Native mobile MVP to connect local producers with buyers in Formosa. Transactions are handled externally via WhatsApp. The core value is discovery, geolocation, and AI-assisted onboarding for non-tech-savvy producers via an NLP-to-JSON bot.
+A 24-hour React Native mobile/web MVP designed as a **relational hub** rather than a traditional transactional marketplace. It connects local producers with buyers in Formosa, fostering a "Kilómetro Cero" economy and B2B networking. Transactions are handled seamlessly via direct WhatsApp routing. Core features include producer-centric discovery, a geolocation Map Modal, Role-Based Access Control (RBAC), and an AI-assisted onboarding flow for non-tech-savvy entrepreneurs.
 
 ## 2. Tech Stack
-- **Frontend:** React Native (Expo recommended for rapid hackathon prototyping).
+- **Frontend:** React Native (Expo) optimized for both Mobile and Web responsiveness.
+- **State/Session:** `AsyncStorage` for local token persistence and RBAC UI toggling.
 - **Backend:** Node.js with Express.js.
-- **Database:** MongoDB (using Mongoose for schemas and geospatial indexing).
-- **Security/Auth:** bcrypt.js (for basic producer password hashing).
+- **Database:** MongoDB (Mongoose for schemas, `2dsphere` for geospatial indexing).
+- **Security/Auth:** bcrypt.js for password hashing.
 - **AI Assistant:** Google Gemini API / OpenAI API (Structured JSON output mode).
-- **Maps & Geolocation:** `react-native-maps` + MongoDB `2dsphere` index for location-based queries.
+- **Maps & Geolocation:** `react-native-maps` for the contextual Map Modal.
 
-## 3. UI & Styling Guidelines
+## 3. UI & Styling Guidelines (Theme: Institucional Local)
+The application utilizes a clean, high-contrast light theme inspired by the colors of Argentina and Formosa to project official, institutional reliability while preventing eye strain.
 
-All frontend components and screens should follow the **Tierra y Artesanía** theme to create a warm, approachable visual identity rooted in local production and craftsmanship.
-
-- **Theme Name:** Tierra y Artesanía
-- **Main Background:** `#F5F4F2` (Warm light gray)
-- **Surface/Cards:** `#FFFFFF`
-- **Primary Accent:** `#C89F7A` (Light wood/sand brown)
-- **Main Text:** `#2C2C2C` (Charcoal)
-- **Secondary Text:** `#5A5A5A`
-- **Chip/Muted Background:** `#EAE0D5`
+- **Main Backgrounds (Screens):** `#F8F9FA` (Off-white)
+- **Headers & Primary Buttons:** `#74ACDF` (Celeste Argentino)
+- **Cards & Inputs Background:** `#FFFFFF` (Pure white with subtle `#000` shadow/elevation)
+- **Primary Text (Titles, user names):** `#2D2D2D` (Dark slate grey)
+- **Secondary Text (Descriptions, placeholders):** `#6C757D`
+- **Borders & Dividers:** `#E0E0E0`
+- **Category Tags:** Background `#E3F2FD`, Text `#1565C0`
+- **Keyword Tags:** Background `#E9ECEF`, Text `#495057`
 
 ## 4. Core Entities & Data Model (MongoDB)
 
-### Producer (Collection: `producers`)
+### User (Collection: `users`)
 - `_id`: ObjectId
-- `name`: String (e.g., "Apícola Formosa")
-- `category`: String (e.g., "Agro", "Tecnología", "Artesanía")
-- `whatsappNumber`: String (Format: country code + number)
-- `passwordHash`: String (hashed via bcrypt)
+- `name`: String
+- `email`: String
+- `passwordHash`: String
+- `role`: Enum `['comprador', 'productor']`
+- `businessId`: ObjectId (Ref: 'Producer', nullable)
+
+### Producer/Business (Collection: `producers`)
+- `_id`: ObjectId
+- `ownerId`: ObjectId (Ref: 'User')
+- `name`: String (e.g., "Apiarios del Monte")
+- `category`: String (e.g., "Alimentos", "Tecnología", "Artesanía")
+- `description`: String
+- `whatsappNumber`: String (Format: country code + number for universal deep linking)
+- `keywords`: [String]
+- `coverImage`: String (URL)
 - `location`: GeoJSON Object 
   - `type`: "Point"
   - `coordinates`: [longitude, latitude]
-- `addressText`: String (e.g., "Barrio Centro, Capital")
 
 ### Product (Collection: `products`)
 - `_id`: ObjectId
 - `producerId`: ObjectId (Ref: 'Producer')
 - `title`: String
-- `price`: Number / String
+- `price`: Number
+- `description`: String
 - `imageUrl`: String
-- `tags`: [String] (e.g., ["miel", "organico"])
-- `metadata`: Object (Flexible schema for dynamic attributes based on category)
+- `tags`: [String]
 
 ## 5. Key Screens (React Native)
 
-1. **Home / Dashboard Screen:**
-   - Search bar component.
-   - Interactive Map (`react-native-maps`) plotting nearby `Producers` using pins.
-   - Horizontal ScrollView of recent/random `Products`.
-2. **Search Results Screen:**
-   - FlatList rendering `ProductCard` components.
-3. **Product Modal / Detail Sheet:**
-   - Large image, price, tags.
-   - Primary Button: "Contactar por WhatsApp" (uses React Native `Linking.openURL('whatsapp://send?phone=...&text=...')`).
-4. **Producer Storefront Screen:**
-   - Producer info header and map snippet of their location.
-   - FlatList of their specific `Products`.
-5. **AI Assistant Screen (Producer Panel):**
-   - TextInput for natural language input ("Describe what you sell").
-   - Backend endpoint `/api/products/ai-generate` calls LLM, receives JSON, and creates the `Product` document.
+1. **Auth Stack (Welcome / Login / Register):**
+   - Centered responsive cards (`maxWidth: 450`).
+   - Registration defaults to redirecting to `Home` to allow browsing before forcing store creation.
+2. **Home Screen (Producer Discovery):**
+   - Producer-centric search (queries `name` and `keywords`).
+   - UI toggles based on RBAC (Hides "Publicar" if user is a `comprador`).
+   - Producer Cards with cover images and direct WhatsApp action buttons.
+3. **Map Modal:**
+   - Overlays on the Home screen via `react-native-maps`.
+   - Renders pins strictly based on active search/filter results.
+4. **Profile Screen (Management Hub):**
+   - Fetches and syncs user data via `AsyncStorage` / API.
+   - RBAC Conditional UI: If `productor` without a business, shows "Crear Negocio con IA". If has business, shows "Subir nuevo artículo".
+5. **AI Assistant Screen (Store/Product Generation):**
+   - Natural language input mapped to structured catalog fields.
+   - Includes live image preview via URL pasting for rapid MVP testing.
+6. **Centro de Desarrollo Emprendedor (Resources):**
+   - Reusable card grid displaying formalization guides, institutional links, and regional normative data.
 
- ## 6. Technical Constraints & Hackathon Shortcuts
-- Use Expo Go for testing to avoid Android Studio/Xcode build times.
-- Mock image uploads: Use direct image URLs or a simple Cloudinary endpoint. Do not build custom file storage.
-- Keep the map scope centered on Formosa coordinates by default (`latitude: -26.1849, longitude: -58.1731`).
+## 6. Technical Constraints & Hackathon Shortcuts
+- **Web Compatibility:** Wrap all main screen content in `maxWidth: 1000` or `maxWidth: 600` containers with `alignSelf: 'center'` to ensure the app functions perfectly as a web dashboard for judges.
+- **Image Handling:** Use direct image URLs with live `<Image>` previews instead of building complex multi-part form file uploads.
+- **Map Centering:** Default `react-native-maps` region rigidly set to Formosa (`latitude: -26.1849, longitude: -58.1731`, delta `0.05`).
