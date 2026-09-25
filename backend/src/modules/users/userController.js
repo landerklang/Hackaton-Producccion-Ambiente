@@ -113,8 +113,54 @@ const getMe = async (req, res) => {
   });
 };
 
+const updateMe = async (req, res) => {
+  try {
+    const { name, email } = req.body;
+
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ error: 'name is required.' });
+    }
+
+    if (!email || typeof email !== 'string' || !email.trim()) {
+      return res.status(400).json({ error: 'email is required.' });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    const existingUser = await User.findOne({
+      email: normalizedEmail,
+      _id: { $ne: req.user._id },
+    });
+
+    if (existingUser) {
+      return res.status(409).json({ error: 'A user with this email already exists.' });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { name: name.trim(), email: normalizedEmail },
+      { new: true, runValidators: true },
+    ).select('-passwordHash');
+
+    return res.status(200).json({
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    console.error('User update failed:', error.message);
+    if (error.code === 11000) {
+      return res.status(409).json({ error: 'A user with this email already exists.' });
+    }
+    return res.status(500).json({ error: 'Unable to update user.' });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
   getMe,
+  updateMe,
 };

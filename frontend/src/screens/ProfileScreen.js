@@ -1,6 +1,11 @@
-import React, { useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
 import {
+  ActivityIndicator,
+  Alert,
+  Modal,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -10,16 +15,76 @@ import {
   View,
 } from 'react-native';
 
-export default function ProfileScreen({ navigation, setIsAuthenticated }) {
+const API_HOST = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
+const PRODUCERS_API_URL = `http://${API_HOST}:3000/api/producers`;
+const USER_API_URL = `http://${API_HOST}:3000/api/auth/me`;
+
+export default function ProfileScreen({ navigation, setIsAuthenticated, currentUser, setCurrentUser }) {
   const [user, setUser] = useState({
-    name: 'María López',
-    email: 'maria@ejemplo.com',
-    phone: '+54 9 3704 123456',
+    name: currentUser?.name || '',
+    email: currentUser?.email || '',
   });
 
   const [isEditing, setIsEditing] = useState(false);
   const [hasBusiness, setHasBusiness] = useState(false);
+  const [business, setBusiness] = useState(null);
+  const [loadingBusiness, setLoadingBusiness] = useState(true);
+  const [isBusinessModalVisible, setBusinessModalVisible] = useState(false);
+  const [businessModalSection, setBusinessModalSection] = useState('details');
   const [form, setForm] = useState({ ...user });
+
+  useEffect(() => {
+    setUser({
+      name: currentUser?.name || '',
+      email: currentUser?.email || '',
+    });
+    setForm({
+      name: currentUser?.name || '',
+      email: currentUser?.email || '',
+    });
+  }, [currentUser]);
+
+  useEffect(() => {
+    const loadBusiness = async () => {
+      let ownerUserId = currentUser?.id;
+
+      if (!ownerUserId) {
+        const storedUserData = await AsyncStorage.getItem('userData');
+        const storedUser = storedUserData ? JSON.parse(storedUserData) : null;
+        ownerUserId = storedUser?.id;
+      }
+
+      if (!ownerUserId) {
+        setBusiness(null);
+        setHasBusiness(false);
+        setLoadingBusiness(false);
+        return;
+      }
+
+      try {
+        const query = new URLSearchParams({
+          status: 'published',
+          ownerUserId,
+        }).toString();
+        const response = await axios.get(`${PRODUCERS_API_URL}?${query}`);
+        const published = Array.isArray(response.data) ? response.data : [];
+        const firstPublished = published[0] || null;
+        setBusiness(firstPublished);
+        setHasBusiness(Boolean(firstPublished));
+      } catch (error) {
+        console.error('Error loading published business:', error);
+        setBusiness(null);
+        setHasBusiness(false);
+      } finally {
+        setLoadingBusiness(false);
+      }
+    };
+
+    loadBusiness();
+
+    const unsubscribe = navigation.addListener('focus', loadBusiness);
+    return unsubscribe;
+  }, [currentUser?.id, navigation]);
 
   const handleChange = (field, value) => {
     setForm((prev) => ({
@@ -28,14 +93,49 @@ export default function ProfileScreen({ navigation, setIsAuthenticated }) {
     }));
   };
 
-  const handleSave = () => {
-    setUser(form);
-    setIsEditing(false);
+  const handleSave = async () => {
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      const response = await fetch(USER_API_URL, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('User update failed.');
+      }
+
+      const data = await response.json();
+      const updatedUser = {
+        ...currentUser,
+        ...data.user,
+        role: data.user?.role === 'producer' ? 'productor' : data.user?.role || currentUser?.role,
+      };
+      await AsyncStorage.setItem('userData', JSON.stringify(updatedUser));
+      setCurrentUser(updatedUser);
+      setUser({ name: updatedUser.name || '', email: updatedUser.email || '' });
+      setIsEditing(false);
+      Alert.alert('Éxito', 'Tus datos han sido actualizados.');
+    } catch (error) {
+      console.error('Error updating user data:', error);
+      Alert.alert('Error', 'Hubo un problema al actualizar la base de datos.');
+    }
   };
 
   const handleLogout = async () => {
     try {
       await AsyncStorage.removeItem('userToken');
+      await AsyncStorage.removeItem('userRole');
+      await AsyncStorage.removeItem('userHasBusiness');
+      await AsyncStorage.removeItem('userData');
+      setCurrentUser({ role: 'comprador', hasBusiness: false });
       setIsAuthenticated(false);
       navigation.getRoot()?.reset({
         index: 0,
@@ -61,6 +161,7 @@ export default function ProfileScreen({ navigation, setIsAuthenticated }) {
           <Text numberOfLines={1} style={styles.headerTitle}>Mi Perfil</Text>
         </View>
       </View>
+
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.innerContainer}>
           <View style={styles.card}>
@@ -70,17 +171,12 @@ export default function ProfileScreen({ navigation, setIsAuthenticated }) {
               <>
                 <View style={styles.infoRow}>
                   <Text style={styles.label}>Nombre</Text>
-                  <Text style={styles.value}>{user.name}</Text>
+                  <Text style={styles.value}>{user.name || 'Sin nombre disponible'}</Text>
                 </View>
 
                 <View style={styles.infoRow}>
                   <Text style={styles.label}>Email</Text>
-                  <Text style={styles.value}>{user.email}</Text>
-                </View>
-
-                <View style={styles.infoRow}>
-                  <Text style={styles.label}>Teléfono</Text>
-                  <Text style={styles.value}>{user.phone}</Text>
+                  <Text style={styles.value}>{user.email || 'Sin email disponible'}</Text>
                 </View>
 
                 <Pressable
@@ -101,7 +197,7 @@ export default function ProfileScreen({ navigation, setIsAuthenticated }) {
                   value={form.name}
                   onChangeText={(value) => handleChange('name', value)}
                   placeholder="Nombre"
-                  placeholderTextColor="#B7B7B7"
+                  placeholderTextColor="#6C757D"
                   style={styles.input}
                 />
 
@@ -110,20 +206,10 @@ export default function ProfileScreen({ navigation, setIsAuthenticated }) {
                   value={form.email}
                   onChangeText={(value) => handleChange('email', value)}
                   placeholder="Email"
-                  placeholderTextColor="#B7B7B7"
+                  placeholderTextColor="#6C757D"
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
-                  style={styles.input}
-                />
-
-                <Text style={styles.label}>Teléfono</Text>
-                <TextInput
-                  value={form.phone}
-                  onChangeText={(value) => handleChange('phone', value)}
-                  placeholder="Teléfono"
-                  placeholderTextColor="#B7B7B7"
-                  keyboardType="phone-pad"
                   style={styles.input}
                 />
 
@@ -138,31 +224,79 @@ export default function ProfileScreen({ navigation, setIsAuthenticated }) {
             )}
           </View>
 
-          <View style={styles.card}>
-            <Text style={[styles.sectionTitle, styles.businessSectionTitle]}>Mi Negocio</Text>
+          {currentUser?.role === 'productor' ? (
+            <View style={styles.card}>
+              <Text style={[styles.sectionTitle, styles.businessSectionTitle]}>Mi Negocio</Text>
 
-            {!hasBusiness ? (
-              <>
-                <Text style={styles.emptyText}>Aún no tienes un negocio registrado.</Text>
+              {loadingBusiness ? (
+                <View style={styles.loadingRow}>
+                  <ActivityIndicator color="#C89F7A" size="small" />
+                  <Text style={styles.loadingText}>Cargando negocio...</Text>
+                </View>
+              ) : !hasBusiness ? (
+                <>
+                  <Text style={styles.emptyText}>Aún no tienes un negocio registrado.</Text>
 
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => {}}
-                  style={({ pressed }) => [styles.primaryButton, pressed && styles.primaryButtonPressed]}
-                >
-                  <Text style={styles.primaryButtonText}>Crear Negocio con IA</Text>
-                </Pressable>
-              </>
-            ) : (
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => {}}
-                style={({ pressed }) => [styles.secondaryButton, pressed && styles.secondaryButtonPressed]}
-              >
-                <Text style={styles.secondaryButtonText}>Subir nuevo artículo</Text>
-              </Pressable>
-            )}
-          </View>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => navigation.navigate('AIPanel')}
+                    style={({ pressed }) => [styles.primaryButton, pressed && styles.primaryButtonPressed]}
+                  >
+                    <Text style={styles.primaryButtonText}>Crear Negocio con IA</Text>
+                  </Pressable>
+                </>
+              ) : (
+                <View style={styles.businessInfo}>
+                  <Pressable
+                    accessibilityLabel={`Ver descripción completa de ${business?.name || 'tu negocio'}`}
+                    accessibilityRole="button"
+                    onPress={() => {
+                      setBusinessModalSection('details');
+                      setBusinessModalVisible(true);
+                    }}
+                    style={({ pressed }) => [styles.businessSummary, pressed && styles.businessSummaryPressed]}
+                  >
+                    <Text style={styles.businessName}>{business?.name || 'Negocio registrado'}</Text>
+                    <Text style={styles.businessMeta}>{business?.category || 'Sin categoría'}</Text>
+                    <Text numberOfLines={3} style={styles.businessDescription}>{business?.description || business?.profileText || 'Sin descripción disponible.'}</Text>
+                    <Text style={styles.detailHint}>Ver descripción completa</Text>
+                  </Pressable>
+
+                  <View style={styles.modalActionRow}>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => {
+                        setBusinessModalSection('plan');
+                        setBusinessModalVisible(true);
+                      }}
+                      style={({ pressed }) => [styles.modalActionButton, pressed && styles.modalActionButtonPressed]}
+                    >
+                      <Text style={styles.modalActionText}>Plan de negocio</Text>
+                    </Pressable>
+
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => {
+                        setBusinessModalSection('legal');
+                        setBusinessModalVisible(true);
+                      }}
+                      style={({ pressed }) => [styles.modalActionButton, pressed && styles.modalActionButtonPressed]}
+                    >
+                      <Text style={styles.modalActionText}>Checklist legal</Text>
+                    </Pressable>
+                  </View>
+
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => navigation.navigate('AIPanel', { existingBusiness: business })}
+                    style={({ pressed }) => [styles.secondaryButton, pressed && styles.secondaryButtonPressed]}
+                  >
+                    <Text style={styles.secondaryButtonText}>Actualizar con IA</Text>
+                  </Pressable>
+                </View>
+              )}
+            </View>
+          ) : null}
 
           <View style={styles.logoutWrapper}>
             <Pressable
@@ -175,6 +309,103 @@ export default function ProfileScreen({ navigation, setIsAuthenticated }) {
           </View>
         </View>
       </ScrollView>
+
+      <Modal
+        animationType="slide"
+        onRequestClose={() => setBusinessModalVisible(false)}
+        transparent
+        visible={isBusinessModalVisible}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.businessModal}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {businessModalSection === 'plan'
+                  ? 'Plan de negocio'
+                  : businessModalSection === 'legal'
+                    ? 'Checklist legal orientativo'
+                    : 'Descripción del emprendimiento'}
+              </Text>
+              <Pressable
+                accessibilityLabel="Cerrar descripción"
+                accessibilityRole="button"
+                onPress={() => setBusinessModalVisible(false)}
+                style={styles.modalCloseButton}
+              >
+                <Text style={styles.modalCloseText}>Cerrar</Text>
+              </Pressable>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {businessModalSection === 'details' ? (
+                <>
+                  <Text style={styles.modalBusinessName}>{business?.name || 'Negocio registrado'}</Text>
+                  <Text style={styles.modalMeta}>{business?.category || 'Sin categoría'}</Text>
+
+                  <Text style={styles.modalLabel}>Descripción</Text>
+                  <Text style={styles.modalBody}>{business?.description || business?.profileText || 'Sin descripción disponible.'}</Text>
+
+                  {business?.addressText ? (
+                    <>
+                      <Text style={styles.modalLabel}>Ubicación</Text>
+                      <Text style={styles.modalBody}>{business.addressText}</Text>
+                    </>
+                  ) : null}
+
+                  {business?.whatsappNumber || business?.instagram ? (
+                    <>
+                      <Text style={styles.modalLabel}>Canales de contacto</Text>
+                      {business?.whatsappNumber ? <Text style={styles.modalBody}>WhatsApp: {business.whatsappNumber}</Text> : null}
+                      {business?.instagram ? <Text style={styles.modalBody}>Instagram: {business.instagram}</Text> : null}
+                    </>
+                  ) : null}
+
+                  {business?.aiGuide?.businessProfile ? (
+                    <>
+                      <Text style={styles.modalLabel}>Cliente objetivo</Text>
+                      <Text style={styles.modalBody}>{business.aiGuide.businessProfile.customer || 'Sin información disponible.'}</Text>
+                      <Text style={styles.modalLabel}>Oferta</Text>
+                      <Text style={styles.modalBody}>{business.aiGuide.businessProfile.offer || 'Sin información disponible.'}</Text>
+                    </>
+                  ) : null}
+                </>
+              ) : businessModalSection === 'plan' ? (
+                <>
+                  {business?.aiGuide?.plan ? (
+                    <>
+                      <Text style={styles.modalLabel}>Propuesta de valor</Text>
+                      <Text style={styles.modalBody}>{business.aiGuide.plan.valueProposition || 'Sin información disponible.'}</Text>
+                      <Text style={styles.modalLabel}>Primera oferta</Text>
+                      <Text style={styles.modalBody}>{business.aiGuide.plan.firstOffer || 'Sin información disponible.'}</Text>
+                      <Text style={styles.modalLabel}>Estrategia de precio</Text>
+                      <Text style={styles.modalBody}>{business.aiGuide.plan.pricingStrategy || 'Sin información disponible.'}</Text>
+                      <Text style={styles.modalLabel}>Primeros 30 días</Text>
+                      {business.aiGuide.plan.first30DaysPlan?.length ? business.aiGuide.plan.first30DaysPlan.map((item, index) => (
+                        <Text key={`plan-item-${index}`} style={styles.modalListItem}>{`• ${item}`}</Text>
+                      )) : <Text style={styles.modalBody}>Sin información disponible.</Text>}
+                    </>
+                  ) : <Text style={styles.modalBody}>Todavía no hay un plan de negocio generado.</Text>}
+                </>
+              ) : (
+                <>
+                  <Text style={styles.modalNotice}>Esta información es orientativa y no reemplaza asesoría profesional.</Text>
+                  {business?.aiGuide?.legalChecklist?.length ? business.aiGuide.legalChecklist.map((item, index) => (
+                    <Text key={`legal-item-${index}`} style={styles.modalListItem}>{`• ${item}`}</Text>
+                  )) : <Text style={styles.modalBody}>Todavía no hay un checklist legal generado.</Text>}
+                  {business?.aiGuide?.officialSources?.length ? (
+                    <>
+                      <Text style={styles.modalLabel}>Fuentes oficiales</Text>
+                      {business.aiGuide.officialSources.map((item, index) => (
+                        <Text key={`source-item-${index}`} style={styles.modalListItem}>{`• ${item}`}</Text>
+                      ))}
+                    </>
+                  ) : null}
+                </>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -182,7 +413,7 @@ export default function ProfileScreen({ navigation, setIsAuthenticated }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#242424',
+    backgroundColor: '#F8F9FA',
   },
   scrollContent: {
     flexGrow: 1,
@@ -190,7 +421,7 @@ const styles = StyleSheet.create({
   },
   profileHeader: {
     width: '100%',
-    backgroundColor: '#C89F7A',
+    backgroundColor: '#74ACDF',
   },
   profileHeaderContent: {
     width: '100%',
@@ -230,13 +461,19 @@ const styles = StyleSheet.create({
     paddingBottom: 30,
   },
   card: {
-    backgroundColor: '#333333',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#E0E0E0',
+    borderWidth: 1,
     borderRadius: 8,
     padding: 24,
     marginBottom: 18,
+    shadowColor: '#000000',
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   sectionTitle: {
-    color: '#FFFFFF',
+    color: '#2D2D2D',
     fontSize: 18,
     fontWeight: '700',
     marginBottom: 12,
@@ -248,52 +485,52 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   label: {
-    color: '#D0D0D0',
+    color: '#6C757D',
     fontSize: 13,
     marginBottom: 6,
     fontWeight: '600',
   },
   value: {
-    color: '#FFFFFF',
+    color: '#2D2D2D',
     fontSize: 16,
     fontWeight: '600',
   },
   outlineButton: {
     marginTop: 10,
     borderWidth: 1,
-    borderColor: '#C89F7A',
+    borderColor: '#74ACDF',
     borderRadius: 8,
     paddingVertical: 12,
     alignItems: 'center',
     backgroundColor: 'transparent',
   },
   outlineButtonPressed: {
-    backgroundColor: 'rgba(200, 159, 122, 0.1)',
+    backgroundColor: '#E3F2FD',
   },
   outlineButtonText: {
-    color: '#C89F7A',
+    color: '#74ACDF',
     fontSize: 15,
     fontWeight: '700',
   },
   input: {
-    backgroundColor: '#3A3A3A',
-    color: '#FFFFFF',
+    backgroundColor: '#FFFFFF',
+    color: '#2D2D2D',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#555555',
+    borderColor: '#CED4DA',
   },
   primaryButton: {
-    backgroundColor: '#C89F7A',
+    backgroundColor: '#74ACDF',
     borderRadius: 8,
     paddingVertical: 12,
     alignItems: 'center',
     marginTop: 6,
   },
   primaryButtonPressed: {
-    backgroundColor: '#B8885C',
+    backgroundColor: '#5E9DCE',
   },
   primaryButtonText: {
     color: '#FFFFFF',
@@ -301,24 +538,166 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   emptyText: {
-    color: '#D0D0D0',
+    color: '#6C757D',
     fontSize: 15,
     textAlign: 'center',
     marginBottom: 20,
   },
+  loadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 8,
+  },
+  loadingText: {
+    color: '#6C757D',
+    fontSize: 14,
+  },
+  businessInfo: {
+    gap: 8,
+  },
+  businessSummary: {
+    borderRadius: 8,
+    padding: 10,
+    margin: -10,
+    marginBottom: 2,
+  },
+  businessSummaryPressed: {
+    backgroundColor: '#F1F7FC',
+  },
+  businessName: {
+    color: '#2D2D2D',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  businessMeta: {
+    color: '#6C757D',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  businessDescription: {
+    color: '#2D2D2D',
+    fontSize: 15,
+    lineHeight: 22,
+    marginTop: 4,
+  },
+  detailHint: {
+    color: '#285C8D',
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  modalActionRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 16,
+  },
+  modalActionButton: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    backgroundColor: '#EAF3FB',
+  },
+  modalActionButtonPressed: {
+    backgroundColor: '#DCEAF9',
+  },
+  modalActionText: {
+    color: '#285C8D',
+    fontSize: 13,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
   secondaryButton: {
-    backgroundColor: '#3A3A3A',
+    backgroundColor: '#EAF3FB',
     borderRadius: 8,
     paddingVertical: 12,
     alignItems: 'center',
+    marginTop: 12,
   },
   secondaryButtonPressed: {
-    backgroundColor: '#4A4A4A',
+    backgroundColor: '#DCEAF9',
   },
   secondaryButtonText: {
-    color: '#FFFFFF',
+    color: '#285C8D',
     fontSize: 15,
     fontWeight: '700',
+  },
+  modalBackdrop: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(20, 35, 50, 0.45)',
+  },
+  businessModal: {
+    width: '100%',
+    maxHeight: '85%',
+    padding: 24,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    backgroundColor: '#FFFFFF',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 20,
+  },
+  modalTitle: {
+    flex: 1,
+    color: '#2D2D2D',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  modalCloseButton: {
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    backgroundColor: '#EAF3FB',
+  },
+  modalCloseText: {
+    color: '#285C8D',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  modalBusinessName: {
+    color: '#2D2D2D',
+    fontSize: 24,
+    fontWeight: '900',
+  },
+  modalMeta: {
+    color: '#6C757D',
+    fontSize: 15,
+    marginTop: 4,
+    marginBottom: 18,
+  },
+  modalLabel: {
+    color: '#285C8D',
+    fontSize: 13,
+    fontWeight: '800',
+    marginTop: 16,
+    marginBottom: 5,
+    textTransform: 'uppercase',
+  },
+  modalBody: {
+    color: '#2D2D2D',
+    fontSize: 15,
+    lineHeight: 23,
+  },
+  modalListItem: {
+    color: '#2D2D2D',
+    fontSize: 15,
+    lineHeight: 23,
+    marginBottom: 7,
+  },
+  modalNotice: {
+    color: '#6C757D',
+    fontSize: 14,
+    lineHeight: 21,
+    marginBottom: 12,
   },
   logoutWrapper: {
     width: '100%',

@@ -6,7 +6,7 @@ import { ActivityIndicator, Platform, Pressable, SafeAreaView, ScrollView, Style
 const API_HOST = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
 const API_URL = `http://${API_HOST}:3000/api/auth/login`;
 
-export default function LoginScreen({ navigation, setIsAuthenticated }) {
+export default function LoginScreen({ navigation, setIsAuthenticated, setCurrentUser }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -23,7 +23,18 @@ export default function LoginScreen({ navigation, setIsAuthenticated }) {
 
     try {
       const response = await axios.post(API_URL, { email, password });
+      const role = response.data.user?.role === 'producer' ? 'productor' : 'comprador';
       await AsyncStorage.setItem('userToken', response.data.token || 'dummy-token');
+      await AsyncStorage.setItem('userRole', role);
+      await AsyncStorage.setItem('userHasBusiness', 'false');
+      await AsyncStorage.setItem('userData', JSON.stringify(response.data.user || {}));
+      setCurrentUser({
+        id: response.data.user?.id,
+        name: response.data.user?.name,
+        email: response.data.user?.email,
+        role,
+        hasBusiness: false,
+      });
       setIsAuthenticated(true);
       navigation.getRoot()?.reset({
         index: 0,

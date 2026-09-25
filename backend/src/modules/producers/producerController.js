@@ -42,6 +42,7 @@ const createProducer = async (req, res) => {
       addressText,
       location,
       status,
+      aiGuide,
       ownerUserId,
     } = req.body;
 
@@ -53,7 +54,9 @@ const createProducer = async (req, res) => {
       return res.status(400).json({ error: 'category is required.' });
     }
 
-    if (ownerUserId !== undefined && ownerUserId !== null && !mongoose.Types.ObjectId.isValid(ownerUserId)) {
+    const hasOwnerUserId = ownerUserId !== undefined && ownerUserId !== null && String(ownerUserId).trim() !== '';
+
+    if (hasOwnerUserId && !mongoose.Types.ObjectId.isValid(ownerUserId)) {
       return res.status(400).json({ error: 'ownerUserId must be a valid ObjectId.' });
     }
 
@@ -66,7 +69,7 @@ const createProducer = async (req, res) => {
       return res.status(400).json({ error: error.message });
     }
 
-    const producer = await Producer.create({
+    const producerPayload = {
       name: name.trim(),
       category: category.trim(),
       description: description ? description.trim() : undefined,
@@ -76,8 +79,14 @@ const createProducer = async (req, res) => {
       addressText: addressText ? String(addressText).trim() : undefined,
       location: normalizedLocation,
       status: nextStatus,
-      ownerUserId: ownerUserId ? new mongoose.Types.ObjectId(ownerUserId) : null,
-    });
+      aiGuide: aiGuide && typeof aiGuide === 'object' ? aiGuide : undefined,
+    };
+
+    if (hasOwnerUserId && mongoose.Types.ObjectId.isValid(ownerUserId)) {
+      producerPayload.ownerUserId = new mongoose.Types.ObjectId(ownerUserId);
+    }
+
+    const producer = await Producer.create(producerPayload);
 
     return res.status(201).json(producer);
   } catch (error) {
@@ -91,8 +100,15 @@ const createProducer = async (req, res) => {
 
 const listProducers = async (req, res) => {
   try {
-    const { status, category, q } = req.query;
+    const { status, category, q, ownerUserId } = req.query;
     const filter = {};
+
+    if (ownerUserId) {
+      if (!mongoose.Types.ObjectId.isValid(ownerUserId)) {
+        return res.status(400).json({ error: 'ownerUserId must be a valid ObjectId.' });
+      }
+      filter.ownerUserId = new mongoose.Types.ObjectId(ownerUserId);
+    }
 
     if (status && validStatuses.includes(status)) {
       filter.status = status;
@@ -135,7 +151,7 @@ const getProducerById = async (req, res) => {
 
 const updateProducer = async (req, res) => {
   try {
-    const { status, location, ...rest } = req.body;
+    const { status, location, aiGuide, ...rest } = req.body;
 
     if (status && !validStatuses.includes(status)) {
       return res.status(400).json({ error: 'status must be one of: draft, published, archived.' });
@@ -147,6 +163,10 @@ const updateProducer = async (req, res) => {
       update.status = status;
     }
 
+    if (aiGuide !== undefined) {
+      update.aiGuide = aiGuide && typeof aiGuide === 'object' ? aiGuide : null;
+    }
+
     if (location !== undefined) {
       try {
         update.location = normalizeLocation(location);
@@ -155,12 +175,14 @@ const updateProducer = async (req, res) => {
       }
     }
 
-    if (update.ownerUserId !== undefined && update.ownerUserId !== null && !mongoose.Types.ObjectId.isValid(update.ownerUserId)) {
+    if (update.ownerUserId !== undefined && update.ownerUserId !== null && String(update.ownerUserId).trim() !== '' && !mongoose.Types.ObjectId.isValid(update.ownerUserId)) {
       return res.status(400).json({ error: 'ownerUserId must be a valid ObjectId.' });
     }
 
-    if (update.ownerUserId) {
+    if (update.ownerUserId !== undefined && update.ownerUserId !== null && String(update.ownerUserId).trim() !== '') {
       update.ownerUserId = new mongoose.Types.ObjectId(update.ownerUserId);
+    } else if (update.ownerUserId === null || String(update.ownerUserId).trim() === '') {
+      delete update.ownerUserId;
     }
 
     const producer = await Producer.findByIdAndUpdate(req.params.id, update, {

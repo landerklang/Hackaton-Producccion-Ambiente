@@ -12,7 +12,6 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import axios from 'axios';
@@ -50,39 +49,48 @@ const normalizeProducer = (producer) => {
 };
 
 const NAV_ITEMS = [
-  { label: 'Explorar', icon: '🔎' },
   { label: 'Publicar', icon: '✦', primary: true },
   { label: 'Perfil', icon: '👤' },
 ];
 
-export default function HomeScreen({ navigation }) {
+export default function HomeScreen({ navigation, currentUser }) {
   const [producers, setProducers] = useState([]);
   const [filteredProducers, setFilteredProducers] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('Todas');
   const [isMapModalVisible, setMapModalVisible] = useState(false);
+  const [selectedProducer, setSelectedProducer] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const visibleNavItems = NAV_ITEMS.filter(
+    (item) => item.label !== 'Publicar' || (currentUser?.role === 'productor' && currentUser.hasBusiness === true),
+  );
+
+  const loadProducers = async () => {
+    try {
+      const response = await axios.get(`${PRODUCERS_API_URL}?status=published`);
+      const nextProducers = Array.isArray(response.data)
+        ? response.data.map(normalizeProducer)
+        : [];
+      setProducers(nextProducers);
+      setLoadError('');
+    } catch (error) {
+      console.error('Error loading producers:', error);
+      setLoadError('No pudimos cargar los emprendimientos. Revisá que el backend esté activo.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadProducers = async () => {
-      try {
-        const response = await axios.get(`${PRODUCERS_API_URL}?status=published`);
-        const nextProducers = Array.isArray(response.data)
-          ? response.data.map(normalizeProducer)
-          : [];
-        setProducers(nextProducers);
-        setLoadError('');
-      } catch (error) {
-        console.error('Error loading producers:', error);
-        setLoadError('No pudimos cargar los emprendimientos. Revisá que el backend esté activo.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     loadProducers();
-  }, []);
+
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadProducers();
+    });
+
+    return unsubscribe;
+  }, [navigation]);
 
   const handleWhatsApp = (phone, producerName) => {
     if (!phone) return;
@@ -115,7 +123,7 @@ export default function HomeScreen({ navigation }) {
           <Text numberOfLines={1} style={styles.brand}>🌱 TACHYON DREAM FORMOSA</Text>
 
           <View style={styles.headerActions}>
-            {NAV_ITEMS.map((item) => (
+            {visibleNavItems.map((item) => (
               <Pressable
                 accessibilityRole="button"
                 key={item.label}
@@ -123,7 +131,7 @@ export default function HomeScreen({ navigation }) {
                   if (item.label === 'Perfil') {
                     navigation.navigate('Profile');
                   } else if (item.label === 'Publicar') {
-                    navigation.navigate('AddProduct');
+                    navigation.navigate('AIPanel');
                   }
                 }}
                 style={[styles.headerButton, item.primary && styles.primaryHeaderButton]}
@@ -149,7 +157,7 @@ export default function HomeScreen({ navigation }) {
           columnWrapperStyle={Platform.OS === 'web' ? styles.columnWrapper : null}
           ListEmptyComponent={isLoading ? (
             <View style={styles.emptyState}>
-              <ActivityIndicator color="#C89F7A" size="large" />
+              <ActivityIndicator color="#74ACDF" size="large" />
               <Text style={styles.emptyText}>Cargando emprendimientos...</Text>
             </View>
           ) : (
@@ -170,19 +178,22 @@ export default function HomeScreen({ navigation }) {
                   accessibilityLabel="Buscar productores"
                   onChangeText={setSearchQuery}
                   placeholder="Buscar productores, rubros o palabras clave..."
-                  placeholderTextColor="#D0D0D0"
+                  placeholderTextColor="#6C757D"
                   style={styles.searchInput}
                   value={searchQuery}
                 />
 
-                <TouchableOpacity
+                <Pressable
                   accessibilityRole="button"
-                  activeOpacity={0.8}
                   onPress={() => setMapModalVisible(true)}
-                  style={styles.mapButton}
+                  style={({ hovered, pressed }) => [
+                    styles.mapButton,
+                    hovered && styles.interactiveHovered,
+                    pressed && styles.interactivePressed,
+                  ]}
                 >
                   <Text style={styles.mapButtonText}>🗺️</Text>
-                </TouchableOpacity>
+                </Pressable>
               </View>
 
               <Text style={styles.sectionTitle}>Explorar por categoría</Text>
@@ -201,7 +212,12 @@ export default function HomeScreen({ navigation }) {
                       accessibilityState={{ selected: isActive }}
                       key={category}
                       onPress={() => setActiveCategory(category)}
-                      style={[styles.categoryChip, isActive && styles.activeCategoryChip]}
+                      style={({ hovered, pressed }) => [
+                        styles.categoryChip,
+                        isActive && styles.activeCategoryChip,
+                        hovered && styles.interactiveHovered,
+                        pressed && styles.interactivePressed,
+                      ]}
                     >
                       <Text style={[styles.categoryText, isActive && styles.activeCategoryText]}>
                         {category}
@@ -220,39 +236,101 @@ export default function HomeScreen({ navigation }) {
           renderItem={({ item: producer }) => (
             <View style={styles.cardWrapper}>
               <View style={styles.producerCard}>
-                <Image
-                  accessibilityLabel={`Imagen de ${producer.name}`}
-                  source={{ uri: producer.image || 'https://picsum.photos/400/200' }}
-                  style={styles.producerImage}
-                />
-                <View style={styles.producerContent}>
-                  <Text numberOfLines={2} style={styles.producerName}>{producer.name}</Text>
-                  <Text numberOfLines={2} style={styles.producerDescription}>{producer.description}</Text>
-                  <View style={styles.producerTags}>
-                    <View style={styles.categoryTag}>
-                      <Text style={styles.categoryTagText}>{producer.category}</Text>
-                    </View>
-                    {producer.keywords.slice(0, 2).map((keyword) => (
-                      <View key={keyword} style={styles.keywordTag}>
-                        <Text style={styles.keywordTagText}>{keyword}</Text>
+                <Pressable
+                  accessibilityLabel={`Ver detalles de ${producer.name}`}
+                  accessibilityRole="button"
+                  onPress={() => setSelectedProducer(producer)}
+                  style={({ hovered, pressed }) => [
+                    styles.producerDetails,
+                    hovered && styles.interactiveHovered,
+                    pressed && styles.interactivePressed,
+                  ]}
+                >
+                  <Image
+                    accessibilityLabel={`Imagen de ${producer.name}`}
+                    source={{ uri: producer.image || 'https://picsum.photos/400/200' }}
+                    style={styles.producerImage}
+                  />
+                  <View style={styles.producerContent}>
+                    <Text numberOfLines={2} style={styles.producerName}>{producer.name}</Text>
+                    <Text numberOfLines={2} style={styles.producerDescription}>{producer.description}</Text>
+                    <View style={styles.producerTags}>
+                      <View style={styles.categoryTag}>
+                        <Text style={styles.categoryTagText}>{producer.category}</Text>
                       </View>
-                    ))}
+                      {producer.keywords.slice(0, 2).map((keyword) => (
+                        <View key={keyword} style={styles.keywordTag}>
+                          <Text style={styles.keywordTagText}>{keyword}</Text>
+                        </View>
+                      ))}
+                    </View>
+                    <Text style={styles.detailsHint}>Ver descripción completa</Text>
                   </View>
-                    <Pressable
-                      accessibilityLabel={`Contactar a ${producer.name} por WhatsApp`}
-                      accessibilityRole="button"
-                      onPress={() => handleWhatsApp(producer.phone, producer.name)}
-                      style={({ pressed }) => [styles.whatsappButton, pressed && styles.whatsappButtonPressed]}
-                    >
-                      <Text style={styles.whatsappButtonText}>Contactar por WhatsApp</Text>
-                    </Pressable>
-                </View>
+                </Pressable>
+                <Pressable
+                  accessibilityLabel={`Contactar a ${producer.name} por WhatsApp`}
+                  accessibilityRole="button"
+                  onPress={() => handleWhatsApp(producer.phone, producer.name)}
+                  style={({ hovered, pressed }) => [
+                    styles.whatsappButton,
+                    hovered && styles.interactiveHovered,
+                    pressed && styles.whatsappButtonPressed,
+                  ]}
+                >
+                  <Text style={styles.whatsappButtonText}>Contactar por WhatsApp</Text>
+                </Pressable>
               </View>
             </View>
           )}
           showsVerticalScrollIndicator={false}
         />
       </View>
+
+      <Modal
+        animationType="slide"
+        onRequestClose={() => setSelectedProducer(null)}
+        transparent
+        visible={Boolean(selectedProducer)}
+      >
+        <View style={styles.detailModalBackdrop}>
+          <View style={styles.detailModal}>
+            <View style={styles.detailModalHeader}>
+              <Text style={styles.detailModalTitle}>Detalle del emprendimiento</Text>
+              <Pressable
+                accessibilityLabel="Cerrar detalle"
+                accessibilityRole="button"
+                onPress={() => setSelectedProducer(null)}
+                style={styles.detailCloseButton}
+              >
+                <Text style={styles.detailCloseText}>Cerrar</Text>
+              </Pressable>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={styles.detailBusinessName}>{selectedProducer?.name || 'Emprendimiento'}</Text>
+              <Text style={styles.detailMeta}>{selectedProducer?.category || 'Sin categoría'}</Text>
+
+              <Text style={styles.detailLabel}>Descripción</Text>
+              <Text style={styles.detailBody}>{selectedProducer?.description || 'Sin descripción disponible.'}</Text>
+
+              {selectedProducer?.addressText ? (
+                <>
+                  <Text style={styles.detailLabel}>Ubicación</Text>
+                  <Text style={styles.detailBody}>{selectedProducer.addressText}</Text>
+                </>
+              ) : null}
+
+              {selectedProducer?.whatsappNumber || selectedProducer?.instagram ? (
+                <>
+                  <Text style={styles.detailLabel}>Canales de contacto</Text>
+                  {selectedProducer?.whatsappNumber ? <Text style={styles.detailBody}>WhatsApp: {selectedProducer.whatsappNumber}</Text> : null}
+                  {selectedProducer?.instagram ? <Text style={styles.detailBody}>Instagram: {selectedProducer.instagram}</Text> : null}
+                </>
+              ) : null}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       <Modal
         animationType="slide"
@@ -301,7 +379,7 @@ export default function HomeScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#242424',
+    backgroundColor: '#F0F2F5',
   },
   shell: {
     flex: 1,
@@ -313,7 +391,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#C89F7A',
+    backgroundColor: '#74ACDF',
     paddingHorizontal: 20,
     paddingVertical: 16,
     gap: 12,
@@ -339,7 +417,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   primaryHeaderButton: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#74ACDF',
   },
   headerButtonText: {
     color: '#FFFFFF',
@@ -347,15 +425,15 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   primaryHeaderButtonText: {
-    color: '#C89F7A',
+    color: '#FFFFFF',
   },
   headerSection: {
     paddingHorizontal: 20,
-    paddingTop: 24,
+    paddingTop: 32,
     paddingBottom: 8,
   },
   heroTitle: {
-    color: '#FFFFFF',
+    color: '#2D2D2D',
     fontSize: 30,
     fontWeight: '800',
     lineHeight: 36,
@@ -363,7 +441,7 @@ const styles = StyleSheet.create({
   },
   heroSubtitle: {
     marginTop: 10,
-    color: '#D0D0D0',
+    color: '#6C757D',
     fontSize: 15,
     lineHeight: 22,
     maxWidth: 420,
@@ -379,10 +457,10 @@ const styles = StyleSheet.create({
     height: 50,
     paddingHorizontal: 16,
     borderWidth: 1,
-    borderColor: '#555555',
-    borderRadius: 12,
-    backgroundColor: '#3A3A3A',
-    color: '#FFFFFF',
+    borderColor: '#CED4DA',
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    color: '#2D2D2D',
     fontSize: 15,
   },
   mapButton: {
@@ -390,17 +468,17 @@ const styles = StyleSheet.create({
     height: 50,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 12,
-    backgroundColor: '#3A3A3A',
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#555555',
+    borderColor: '#E0E0E0',
   },
   mapButtonText: {
     fontSize: 20,
   },
   sectionTitle: {
     marginTop: 24,
-    color: '#FFFFFF',
+    color: '#2D2D2D',
     fontSize: 18,
     fontWeight: '800',
   },
@@ -412,16 +490,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 9,
     borderRadius: 999,
-    backgroundColor: '#333333',
+    backgroundColor: '#F8F9FA',
     borderWidth: 1,
-    borderColor: '#444444',
+    borderColor: '#CED4DA',
   },
   activeCategoryChip: {
-    backgroundColor: '#C89F7A',
-    borderColor: '#C89F7A',
+    backgroundColor: '#74ACDF',
+    borderColor: '#74ACDF',
   },
   categoryText: {
-    color: '#FFFFFF',
+    color: '#6C757D',
     fontSize: 13,
     fontWeight: '700',
   },
@@ -435,11 +513,12 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   resultCount: {
-    color: '#D0D0D0',
+    color: '#6C757D',
     fontSize: 12,
     fontWeight: '600',
   },
   feedContent: {
+    backgroundColor: '#F0F2F5',
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 28,
@@ -457,9 +536,20 @@ const styles = StyleSheet.create({
   },
   producerCard: {
     width: '100%',
-    borderRadius: 8,
-    backgroundColor: '#333333',
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderColor: '#CED4DA',
+    borderWidth: 1.5,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 3,
     overflow: 'hidden',
+  },
+  producerDetails: {
+    overflow: 'hidden',
+    borderRadius: 12,
   },
   producerImage: {
     width: '100%',
@@ -470,13 +560,13 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   producerName: {
-    color: '#FFFFFF',
+    color: '#2D2D2D',
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 4,
   },
   producerDescription: {
-    color: '#D0D0D0',
+    color: '#6C757D',
     fontSize: 14,
     marginBottom: 12,
   },
@@ -485,27 +575,44 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 6,
   },
+  interactiveHovered: {
+    borderColor: '#74ACDF',
+    shadowColor: '#74ACDF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 4,
+  },
+  interactivePressed: {
+    opacity: 0.85,
+  },
   categoryTag: {
     borderRadius: 6,
-    backgroundColor: '#C89F7A',
+    backgroundColor: '#E3F2FD',
     paddingHorizontal: 9,
     paddingVertical: 6,
   },
   categoryTagText: {
-    color: '#FFFFFF',
+    color: '#1565C0',
     fontSize: 12,
     fontWeight: 'bold',
   },
   keywordTag: {
     borderRadius: 6,
-    backgroundColor: '#444444',
+    backgroundColor: '#E9ECEF',
     paddingHorizontal: 9,
     paddingVertical: 6,
   },
   keywordTagText: {
-    color: '#EAE0D5',
+    color: '#495057',
     fontSize: 12,
     fontWeight: '700',
+  },
+  detailsHint: {
+    color: '#285C8D',
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 12,
   },
   whatsappButton: {
     alignItems: 'center',
@@ -523,15 +630,76 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
   },
+  detailModalBackdrop: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(20, 35, 50, 0.45)',
+  },
+  detailModal: {
+    width: '100%',
+    maxHeight: '85%',
+    padding: 24,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    backgroundColor: '#FFFFFF',
+  },
+  detailModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 20,
+  },
+  detailModalTitle: {
+    flex: 1,
+    color: '#2D2D2D',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  detailCloseButton: {
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    backgroundColor: '#EAF3FB',
+  },
+  detailCloseText: {
+    color: '#285C8D',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  detailBusinessName: {
+    color: '#2D2D2D',
+    fontSize: 24,
+    fontWeight: '900',
+  },
+  detailMeta: {
+    color: '#6C757D',
+    fontSize: 15,
+    marginTop: 4,
+    marginBottom: 18,
+  },
+  detailLabel: {
+    color: '#285C8D',
+    fontSize: 13,
+    fontWeight: '800',
+    marginTop: 16,
+    marginBottom: 5,
+    textTransform: 'uppercase',
+  },
+  detailBody: {
+    color: '#2D2D2D',
+    fontSize: 15,
+    lineHeight: 23,
+  },
   modalContainer: {
     flex: 1,
-    backgroundColor: '#242424',
+    backgroundColor: '#F8F9FA',
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#C89F7A',
+    backgroundColor: '#74ACDF',
     paddingHorizontal: 18,
     paddingVertical: 16,
   },
@@ -547,7 +715,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   closeButtonText: {
-    color: '#C89F7A',
+    color: '#74ACDF',
     fontSize: 13,
     fontWeight: '700',
   },
@@ -560,18 +728,18 @@ const styles = StyleSheet.create({
     minHeight: 400,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#2B2B2B',
+    backgroundColor: '#F8F9FA',
     paddingHorizontal: 24,
   },
   mapFallbackTitle: {
-    color: '#FFFFFF',
+    color: '#2D2D2D',
     fontSize: 18,
     fontWeight: '800',
     textAlign: 'center',
   },
   mapFallbackText: {
     marginTop: 8,
-    color: '#D0D0D0',
+    color: '#6C757D',
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
@@ -581,13 +749,13 @@ const styles = StyleSheet.create({
     paddingVertical: 50,
   },
   emptyTitle: {
-    color: '#FFFFFF',
+    color: '#2D2D2D',
     fontSize: 17,
     fontWeight: '800',
   },
   emptyText: {
     marginTop: 7,
-    color: '#D0D0D0',
+    color: '#6C757D',
     fontSize: 14,
   },
 });
