@@ -5,7 +5,10 @@ const PRODUCT_SYSTEM_PROMPT =
   'Eres un experto en extracción de datos estructurados para una plataforma de comercio local de Formosa. Analiza el texto coloquial del productor y extrae lo que desea vender. Devuelve EXCLUSIVAMENTE un objeto JSON con esta estructura: {"title": "String", "price": Number | "Consultar", "tags": ["String"], "metadata": {}}. No inventes datos. No incluyas saludos ni bloques markdown.';
 
 const PROFILE_SYSTEM_PROMPT =
-  'Eres un asistente para crear perfiles de productores locales de Formosa. A partir de una conversación, identifica la información disponible y devuelve EXCLUSIVAMENTE un objeto JSON con esta estructura: {"name": "String", "category": "String", "description": "String", "products": ["String"], "locationText": "String", "whatsappNumber": "String", "instagram": "String", "missingFields": ["String"], "profileText": "String"}. No inventes nombres de usuario, enlaces, categorias, precios, ubicaciones ni datos de contacto. Usa cadenas vacias cuando falte información. En missingFields indica solo datos importantes que todavía falten. profileText debe ser una presentación breve y atractiva usando únicamente los datos proporcionados. No incluyas saludos ni bloques markdown.';
+  'Eres un asistente para crear perfiles de productores locales de Formosa. A partir de una conversación, identifica la información disponible y devuelve EXCLUSIVAMENTE un objeto JSON con esta estructura: {"name": "String", "category": "String", "description": "String", "products": ["String"], "locationText": "String", "whatsappNumber": "String", "instagram": "String", "missingFields": ["String"], "profileText": "String", "guidance": {"orientationGeneral": "String", "nextStep": "String", "officialSource": "String", "warning": "String"}}. No inventes nombres de usuario, enlaces, categorias, precios, ubicaciones ni datos de contacto. Usa cadenas vacias cuando falte información. En missingFields indica solo datos importantes que todavía falten. profileText debe ser una presentación breve y atractiva usando únicamente los datos proporcionados. guidance.orientationGeneral debe explicar brevemente cómo posicionar el emprendimiento, guidance.nextStep debe indicar los próximos pasos para vender localmente, guidance.officialSource debe referenciar una fuente oficial general y guidance.warning debe aclarar que no reemplaza asesoramiento profesional. No incluyas saludos ni bloques markdown.';
+
+const ENTREPRENEUR_GUIDANCE_PROMPT =
+  'Eres un coach de emprendimiento productivo local para Formosa. Ayudá a una persona a transformar una idea o producción en una oferta local clara y viable. Devuelve EXCLUSIVAMENTE un objeto JSON con esta estructura: {"category": "String", "positioning": "String", "quickChecklist": ["String"], "nextSteps": ["String"], "officialSources": ["String"], "warning": "String"}. No inventes información legal ni oficial. Usa una respuesta práctica, concreta y orientada a vender localmente. No incluyas saludos ni bloques markdown.';
 
 const getProvider = () => (process.env.AI_PROVIDER || 'gemini').toLowerCase() === 'ollama' ? generateWithOllama : generateWithGemini;
 
@@ -72,4 +75,25 @@ const generateProducerProfile = async (req, res) => {
   }
 };
 
-module.exports = { generateProductDraft, generateProducerProfile };
+const generateEntrepreneurGuide = async (req, res) => {
+  const { idea, category, location } = req.body;
+
+  if (!idea || typeof idea !== 'string' || !idea.trim()) {
+    return res.status(400).json({ error: 'idea is required.' });
+  }
+
+  try {
+    const contents = `Idea o producción: ${idea.trim()}\nCategoría sugerida: ${category || 'no especificada'}\nLocalidad: ${location || 'Formosa'}.`;
+    const guide = await generateStructuredResponse({
+      systemInstruction: ENTREPRENEUR_GUIDANCE_PROMPT,
+      contents,
+    });
+
+    return res.status(200).json(guide);
+  } catch (error) {
+    console.error('Entrepreneur guidance generation failed:', error.message);
+    return res.status(500).json({ error: `No se pudo generar la guía: ${error.message}` });
+  }
+};
+
+module.exports = { generateProductDraft, generateProducerProfile, generateEntrepreneurGuide };
