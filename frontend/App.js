@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Platform, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import AppNavigator from './src/navigation/AppNavigator';
+import { API_BASE_URL } from './src/config/api';
 
 const normalizeRole = (role) => (
   role === 'producer' || role === 'productor' ? 'productor' : 'comprador'
 );
-const API_HOST = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
-const ME_API_URL = `http://${API_HOST}:3000/api/auth/me`;
+const ME_API_URL = `${API_BASE_URL}/api/auth/me`;
 
 export default function App() {
   const [isReady, setIsReady] = useState(false);

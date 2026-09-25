@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { ActivityIndicator, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { API_BASE_URL } from '../config/api';
 
-const API_HOST = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
-const PROFILE_API_URL = `http://${API_HOST}:3000/api/producers/ai-profile`;
-const GUIDE_API_URL = `http://${API_HOST}:3000/api/ai/entrepreneur-guide`;
-const PRODUCT_API_URL = `http://${API_HOST}:3000/api/products/ai-generate`;
-const PUBLISH_API_URL = `http://${API_HOST}:3000/api/producers`;
+const PROFILE_API_URL = `${API_BASE_URL}/api/producers/ai-profile`;
+const GUIDE_API_URL = `${API_BASE_URL}/api/ai/entrepreneur-guide`;
+const PRODUCT_API_URL = `${API_BASE_URL}/api/products/ai-generate`;
+const PUBLISH_API_URL = `${API_BASE_URL}/api/producers`;
 
 export default function ProducerFormScreen({ navigation }) {
   const [name, setName] = useState('');

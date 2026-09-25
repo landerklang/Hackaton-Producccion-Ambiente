@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { API_BASE_URL } from '../config/api';
 
-const API_HOST = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
-const API_URL = `http://${API_HOST}:3000/api/ai/entrepreneur-guide`;
-const PRODUCER_API_URL = `http://${API_HOST}:3000/api/producers`;
+const API_URL = `${API_BASE_URL}/api/ai/entrepreneur-guide`;
+const PRODUCER_API_URL = `${API_BASE_URL}/api/producers`;
 
 const INITIAL_FORM = {
   idea: '',
@@ -83,12 +83,15 @@ export default function AIPanelScreen({ route, currentUser }) {
         experience: form.experience,
         availability: form.availability,
         budget: form.budget,
-      });
+      }, { timeout: 120000 });
 
       setGuide(response.data);
       setDraftBusiness((current) => buildDraftFromGuide(response.data, current));
     } catch (error) {
-      setErrorMessage(error.response?.data?.error || 'No pudimos generar la guía. Revisá la conexión e intentá nuevamente.');
+      const errorMessage = error.code === 'ECONNABORTED'
+        ? 'La guía está tardando más de lo esperado. Verificá que Ollama siga activo e intentá nuevamente.'
+        : error.response?.data?.error || 'No pudimos generar la guía. Revisá la conexión e intentá nuevamente.';
+      setErrorMessage(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -128,10 +131,10 @@ export default function AIPanelScreen({ route, currentUser }) {
       };
 
       if (draftBusiness._id) {
-        await axios.put(`${PRODUCER_API_URL}/${draftBusiness._id}`, payload);
+        await axios.put(`${PRODUCER_API_URL}/${draftBusiness._id}`, payload, { timeout: 15000 });
         setSuccessMessage('Negocio actualizado con éxito. Volviendo al inicio...');
       } else {
-        await axios.post(PRODUCER_API_URL, payload);
+        await axios.post(PRODUCER_API_URL, payload, { timeout: 15000 });
         setSuccessMessage('Negocio creado con éxito. Volviendo al inicio...');
       }
 

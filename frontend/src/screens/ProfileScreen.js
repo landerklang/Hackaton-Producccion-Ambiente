@@ -14,10 +14,10 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { API_BASE_URL } from '../config/api';
 
-const API_HOST = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
-const PRODUCERS_API_URL = `http://${API_HOST}:3000/api/producers`;
-const USER_API_URL = `http://${API_HOST}:3000/api/auth/me`;
+const PRODUCERS_API_URL = `${API_BASE_URL}/api/producers`;
+const USER_API_URL = `${API_BASE_URL}/api/auth/me`;
 
 export default function ProfileScreen({ navigation, setIsAuthenticated, currentUser, setCurrentUser }) {
   const [user, setUser] = useState({

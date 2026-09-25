@@ -17,9 +17,9 @@ import {
 import axios from 'axios';
 import WebMapView, { Marker as WebMarker } from '../components/MapView.web';
 import NativeMapView, { Marker as NativeMapMarker } from '../components/MapView.native';
+import { API_BASE_URL } from '../config/api';
 
-const API_HOST = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
-const PRODUCERS_API_URL = `http://${API_HOST}:3000/api/producers`;
+const PRODUCERS_API_URL = `${API_BASE_URL}/api/producers`;
 const MapComponent = Platform.OS === 'web' ? WebMapView : NativeMapView;
 const MarkerComponent = Platform.OS === 'web' ? WebMarker : NativeMapMarker;
 

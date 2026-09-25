@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ActivityIndicator, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { API_BASE_URL } from '../config/api';
 
-const API_HOST = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
-const API_URL = `http://${API_HOST}:3000/api/auth/register`;
+const API_URL = `${API_BASE_URL}/api/auth/register`;
 
 export default function RegisterScreen({ navigation, setIsAuthenticated, setCurrentUser }) {
   const [name, setName] = useState('');
