@@ -6,7 +6,7 @@ import { ActivityIndicator, Platform, Pressable, SafeAreaView, ScrollView, Style
 const API_HOST = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
 const API_URL = `http://${API_HOST}:3000/api/auth/register`;
 
-export default function RegisterScreen({ navigation, setIsAuthenticated }) {
+export default function RegisterScreen({ navigation, setIsAuthenticated, setCurrentUser }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -25,7 +25,13 @@ export default function RegisterScreen({ navigation, setIsAuthenticated }) {
 
     try {
       const response = await axios.post(API_URL, { name, email, password, role });
+      const normalizedRole = response.data.user?.role === 'producer' || role === 'producer'
+        ? 'productor'
+        : 'comprador';
       await AsyncStorage.setItem('userToken', response.data.token || 'dummy-token');
+      await AsyncStorage.setItem('userRole', normalizedRole);
+      await AsyncStorage.setItem('userHasBusiness', 'false');
+      setCurrentUser({ role: normalizedRole, hasBusiness: false });
       setIsAuthenticated(true);
 
       navigation.getRoot()?.reset({

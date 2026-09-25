@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   Pressable,
+  Alert,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -10,7 +11,7 @@ import {
   View,
 } from 'react-native';
 
-export default function ProfileScreen({ navigation, setIsAuthenticated }) {
+export default function ProfileScreen({ navigation, setIsAuthenticated, currentUser, setCurrentUser }) {
   const [user, setUser] = useState({
     name: 'María López',
     email: 'maria@ejemplo.com',
@@ -18,7 +19,6 @@ export default function ProfileScreen({ navigation, setIsAuthenticated }) {
   });
 
   const [isEditing, setIsEditing] = useState(false);
-  const [hasBusiness, setHasBusiness] = useState(false);
   const [form, setForm] = useState({ ...user });
 
   const handleChange = (field, value) => {
@@ -28,14 +28,41 @@ export default function ProfileScreen({ navigation, setIsAuthenticated }) {
     }));
   };
 
-  const handleSave = () => {
-    setUser(form);
-    setIsEditing(false);
+  const handleSave = async () => {
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      const response = await fetch('http://localhost:5000/api/users/update', {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('User update failed.');
+      }
+
+      await AsyncStorage.setItem('userData', JSON.stringify(form));
+      setUser(form);
+      setIsEditing(false);
+      Alert.alert('Éxito', 'Tus datos han sido actualizados.');
+    } catch (error) {
+      console.error('Error updating user data:', error);
+      Alert.alert('Error', 'Hubo un problema al actualizar la base de datos.');
+    }
   };
 
   const handleLogout = async () => {
     try {
       await AsyncStorage.removeItem('userToken');
+      await AsyncStorage.removeItem('userRole');
+      await AsyncStorage.removeItem('userHasBusiness');
+      setCurrentUser({ role: 'comprador', hasBusiness: false });
       setIsAuthenticated(false);
       navigation.getRoot()?.reset({
         index: 0,
@@ -101,7 +128,7 @@ export default function ProfileScreen({ navigation, setIsAuthenticated }) {
                   value={form.name}
                   onChangeText={(value) => handleChange('name', value)}
                   placeholder="Nombre"
-                  placeholderTextColor="#B7B7B7"
+                  placeholderTextColor="#6C757D"
                   style={styles.input}
                 />
 
@@ -110,7 +137,7 @@ export default function ProfileScreen({ navigation, setIsAuthenticated }) {
                   value={form.email}
                   onChangeText={(value) => handleChange('email', value)}
                   placeholder="Email"
-                  placeholderTextColor="#B7B7B7"
+                  placeholderTextColor="#6C757D"
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -122,7 +149,7 @@ export default function ProfileScreen({ navigation, setIsAuthenticated }) {
                   value={form.phone}
                   onChangeText={(value) => handleChange('phone', value)}
                   placeholder="Teléfono"
-                  placeholderTextColor="#B7B7B7"
+                  placeholderTextColor="#6C757D"
                   keyboardType="phone-pad"
                   style={styles.input}
                 />
@@ -138,31 +165,33 @@ export default function ProfileScreen({ navigation, setIsAuthenticated }) {
             )}
           </View>
 
-          <View style={styles.card}>
-            <Text style={[styles.sectionTitle, styles.businessSectionTitle]}>Mi Negocio</Text>
+          {currentUser?.role === 'productor' ? (
+            <View style={styles.card}>
+              <Text style={[styles.sectionTitle, styles.businessSectionTitle]}>Mi Negocio</Text>
 
-            {!hasBusiness ? (
-              <>
-                <Text style={styles.emptyText}>Aún no tienes un negocio registrado.</Text>
+              {!currentUser.hasBusiness ? (
+                <>
+                  <Text style={styles.emptyText}>Aún no tienes un negocio registrado.</Text>
 
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => {}}
+                    style={({ pressed }) => [styles.primaryButton, pressed && styles.primaryButtonPressed]}
+                  >
+                    <Text style={styles.primaryButtonText}>Crear Negocio con IA</Text>
+                  </Pressable>
+                </>
+              ) : (
                 <Pressable
                   accessibilityRole="button"
-                  onPress={() => {}}
-                  style={({ pressed }) => [styles.primaryButton, pressed && styles.primaryButtonPressed]}
+                  onPress={() => navigation.navigate('AddProduct')}
+                  style={({ pressed }) => [styles.secondaryButton, pressed && styles.secondaryButtonPressed]}
                 >
-                  <Text style={styles.primaryButtonText}>Crear Negocio con IA</Text>
+                  <Text style={styles.secondaryButtonText}>Subir nuevo artículo</Text>
                 </Pressable>
-              </>
-            ) : (
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => {}}
-                style={({ pressed }) => [styles.secondaryButton, pressed && styles.secondaryButtonPressed]}
-              >
-                <Text style={styles.secondaryButtonText}>Subir nuevo artículo</Text>
-              </Pressable>
-            )}
-          </View>
+              )}
+            </View>
+          ) : null}
 
           <View style={styles.logoutWrapper}>
             <Pressable
@@ -182,7 +211,7 @@ export default function ProfileScreen({ navigation, setIsAuthenticated }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#242424',
+    backgroundColor: '#F8F9FA',
   },
   scrollContent: {
     flexGrow: 1,
@@ -190,7 +219,7 @@ const styles = StyleSheet.create({
   },
   profileHeader: {
     width: '100%',
-    backgroundColor: '#C89F7A',
+    backgroundColor: '#74ACDF',
   },
   profileHeaderContent: {
     width: '100%',
@@ -230,13 +259,19 @@ const styles = StyleSheet.create({
     paddingBottom: 30,
   },
   card: {
-    backgroundColor: '#333333',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#E0E0E0',
+    borderWidth: 1,
     borderRadius: 8,
     padding: 24,
     marginBottom: 18,
+    shadowColor: '#000000',
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   sectionTitle: {
-    color: '#FFFFFF',
+    color: '#2D2D2D',
     fontSize: 18,
     fontWeight: '700',
     marginBottom: 12,
@@ -248,52 +283,52 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   label: {
-    color: '#D0D0D0',
+    color: '#6C757D',
     fontSize: 13,
     marginBottom: 6,
     fontWeight: '600',
   },
   value: {
-    color: '#FFFFFF',
+    color: '#2D2D2D',
     fontSize: 16,
     fontWeight: '600',
   },
   outlineButton: {
     marginTop: 10,
     borderWidth: 1,
-    borderColor: '#C89F7A',
+    borderColor: '#74ACDF',
     borderRadius: 8,
     paddingVertical: 12,
     alignItems: 'center',
     backgroundColor: 'transparent',
   },
   outlineButtonPressed: {
-    backgroundColor: 'rgba(200, 159, 122, 0.1)',
+    backgroundColor: '#E3F2FD',
   },
   outlineButtonText: {
-    color: '#C89F7A',
+    color: '#74ACDF',
     fontSize: 15,
     fontWeight: '700',
   },
   input: {
-    backgroundColor: '#3A3A3A',
-    color: '#FFFFFF',
+    backgroundColor: '#FFFFFF',
+    color: '#2D2D2D',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#555555',
+    borderColor: '#CED4DA',
   },
   primaryButton: {
-    backgroundColor: '#C89F7A',
+    backgroundColor: '#74ACDF',
     borderRadius: 8,
     paddingVertical: 12,
     alignItems: 'center',
     marginTop: 6,
   },
   primaryButtonPressed: {
-    backgroundColor: '#B8885C',
+    backgroundColor: '#5E9DCE',
   },
   primaryButtonText: {
     color: '#FFFFFF',
@@ -301,22 +336,24 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   emptyText: {
-    color: '#D0D0D0',
+    color: '#6C757D',
     fontSize: 15,
     textAlign: 'center',
     marginBottom: 20,
   },
   secondaryButton: {
-    backgroundColor: '#3A3A3A',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#74ACDF',
+    borderWidth: 1,
     borderRadius: 8,
     paddingVertical: 12,
     alignItems: 'center',
   },
   secondaryButtonPressed: {
-    backgroundColor: '#4A4A4A',
+    backgroundColor: '#E3F2FD',
   },
   secondaryButtonText: {
-    color: '#FFFFFF',
+    color: '#74ACDF',
     fontSize: 15,
     fontWeight: '700',
   },
@@ -334,14 +371,14 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#FF6B6B',
+    borderColor: '#74ACDF',
     backgroundColor: 'transparent',
   },
   logoutButtonPressed: {
-    backgroundColor: 'rgba(255, 107, 107, 0.08)',
+    backgroundColor: '#E3F2FD',
   },
   logoutText: {
-    color: '#FF6B6B',
+    color: '#74ACDF',
     fontSize: 15,
     fontWeight: '700',
   },
