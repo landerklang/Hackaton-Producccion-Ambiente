@@ -1,79 +1,88 @@
-import React from "react";
-import { Pressable, StyleSheet, Text } from "react-native";
-import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import LandingScreen from "../screens/LandingScreen";
-import AuthScreen from "../screens/AuthScreen";
-import HomeScreen from "../screens/HomeScreen";
-import AIPanelScreen from "../screens/AIPanelScreen";
+import React from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import HomeScreen from '../screens/HomeScreen';
+import AIPanelScreen from '../screens/AIPanelScreen';
+import AddProductScreen from '../screens/AddProductScreen';
+import AuthEntryScreen from '../screens/AuthEntryScreen';
+import LoginScreen from '../screens/LoginScreen';
+import RegisterScreen from '../screens/RegisterScreen';
+import BuyerFormScreen from '../screens/BuyerFormScreen';
+import ProducerFormScreen from '../screens/ProducerFormScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 
-const Stack = createNativeStackNavigator();
+const RootStack = createNativeStackNavigator();
+const AuthStack = createNativeStackNavigator();
+const MainStack = createNativeStackNavigator();
 
-function AppNavigator() {
+function AuthNavigator({ setIsAuthenticated }) {
   return (
-    <Stack.Navigator
-      initialRouteName="Landing"
+    <AuthStack.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: "#F5F7F6" },
-        headerTintColor: "#172033",
-        headerTitleStyle: { fontWeight: "800" },
-        headerShadowVisible: false,
-        contentStyle: { backgroundColor: "#F5F7F6" },
+        headerShown: false,
       }}
     >
-      <Stack.Screen name="Landing" options={{ headerShown: false }}>
-        {({ navigation }) => (
-          <LandingScreen
-            onBuyPress={() =>
-              navigation.navigate("Auth", { mode: "register", role: "client" })
-            }
-            onSellPress={() =>
-              navigation.navigate("Auth", {
-                mode: "register",
-                role: "producer",
-              })
-            }
-            onLoginPress={() => navigation.navigate("Auth", { mode: "login" })}
-          />
-        )}
-      </Stack.Screen>
+      <AuthStack.Screen name="AuthEntry" component={AuthEntryScreen} />
+      <AuthStack.Screen name="Login">
+        {(props) => <LoginScreen {...props} setIsAuthenticated={setIsAuthenticated} />}
+      </AuthStack.Screen>
+      <AuthStack.Screen name="Register">
+        {(props) => <RegisterScreen {...props} setIsAuthenticated={setIsAuthenticated} />}
+      </AuthStack.Screen>
+    </AuthStack.Navigator>
+  );
+}
 
-      <Stack.Screen
-        name="Auth"
-        component={AuthScreen}
-        options={{ title: "Autenticación" }}
-      />
-
-      <Stack.Screen
-        name="AuthEntry"
-        component={AuthScreen}
-        options={{ title: "Hub Productivo" }}
-      />
-      <Stack.Screen
+function MainNavigator({ setIsAuthenticated }) {
+  return (
+    <MainStack.Navigator
+      screenOptions={{
+        headerShown: false,
+      }}
+    >
+      <MainStack.Screen
         name="Home"
         component={HomeScreen}
         options={({ navigation }) => ({
-          title: "Hub Productivo",
+          title: 'Hub Productivo',
           headerRight: () => (
-            <Button title="IA" onPress={() => navigation.navigate("AIPanel")} />
+            <View style={styles.headerActions}>
+              <Button title="IA" onPress={() => navigation.navigate('AIPanel')} />
+              <Button title="Entrar" onPress={() => navigation.navigate('AuthEntry')} />
+            </View>
           ),
         })}
       />
-      <Stack.Screen
-        name="AIPanel"
-        component={AIPanelScreen}
-        options={{ title: "Catálogo con IA" }}
-      />
-    </Stack.Navigator>
+      <MainStack.Screen name="BuyerForm" component={BuyerFormScreen} options={{ title: 'Perfil del comprador' }} />
+      <MainStack.Screen name="ProducerForm" component={ProducerFormScreen} options={{ title: 'Perfil del productor' }} />
+      <MainStack.Screen name="AddProduct" component={AddProductScreen} />
+      <MainStack.Screen name="Profile">
+        {(props) => <ProfileScreen {...props} setIsAuthenticated={setIsAuthenticated} />}
+      </MainStack.Screen>
+      <MainStack.Screen name="AIPanel" component={AIPanelScreen} options={{ title: 'Catálogo con IA' }} />
+    </MainStack.Navigator>
+  );
+}
+
+function Navigator({ isAuthenticated, setIsAuthenticated }) {
+  return (
+    <RootStack.Navigator screenOptions={{ headerShown: false }}>
+      {isAuthenticated ? (
+        <RootStack.Screen name="Main">
+          {(props) => <MainNavigator {...props} setIsAuthenticated={setIsAuthenticated} />}
+        </RootStack.Screen>
+      ) : (
+        <RootStack.Screen name="Auth">
+          {(props) => <AuthNavigator {...props} setIsAuthenticated={setIsAuthenticated} />}
+        </RootStack.Screen>
+      )}
+    </RootStack.Navigator>
   );
 }
 
 function Button({ title, onPress }) {
   return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      style={styles.headerButton}
-    >
+    <Pressable accessibilityRole="button" onPress={onPress} style={styles.headerButton}>
       <Text style={styles.headerButtonText}>{title}</Text>
     </Pressable>
   );
@@ -81,8 +90,8 @@ function Button({ title, onPress }) {
 
 const styles = StyleSheet.create({
   headerActions: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 10,
   },
   headerButton: {
@@ -90,10 +99,10 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   headerButtonText: {
-    color: "#18864B",
+    color: '#18864B',
     fontSize: 14,
-    fontWeight: "800",
+    fontWeight: '800',
   },
 });
 
-export default AppNavigator;
+export default Navigator;

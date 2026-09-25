@@ -48,10 +48,21 @@ export default function ProfileScreen({ navigation, setIsAuthenticated }) {
 
   return (
     <SafeAreaView style={styles.container}>
+      <View style={styles.profileHeader}>
+        <View style={styles.profileHeaderContent}>
+          <Pressable
+            accessibilityLabel="Volver al inicio"
+            accessibilityRole="button"
+            onPress={() => navigation.goBack()}
+            style={({ pressed }) => [styles.backButton, pressed && styles.backButtonPressed]}
+          >
+            <Text style={styles.backButtonText}>← Volver</Text>
+          </Pressable>
+          <Text numberOfLines={1} style={styles.headerTitle}>Mi Perfil</Text>
+        </View>
+      </View>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.innerContainer}>
-          <Text style={styles.pageTitle}>Mi Perfil</Text>
-
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Datos Personales</Text>
 
@@ -128,7 +139,7 @@ export default function ProfileScreen({ navigation, setIsAuthenticated }) {
           </View>
 
           <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Mi Negocio</Text>
+            <Text style={[styles.sectionTitle, styles.businessSectionTitle]}>Mi Negocio</Text>
 
             {!hasBusiness ? (
               <>
@@ -177,6 +188,40 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingVertical: 20,
   },
+  profileHeader: {
+    width: '100%',
+    backgroundColor: '#C89F7A',
+  },
+  profileHeaderContent: {
+    width: '100%',
+    maxWidth: 1000,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    gap: 12,
+  },
+  backButton: {
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  backButtonPressed: {
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
+  },
+  backButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  headerTitle: {
+    flexShrink: 1,
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '900',
+  },
   innerContainer: {
     width: '100%',
     maxWidth: 600,
@@ -184,16 +229,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 30,
   },
-  pageTitle: {
-    color: '#FFFFFF',
-    fontSize: 30,
-    fontWeight: '800',
-    marginBottom: 18,
-  },
   card: {
     backgroundColor: '#333333',
     borderRadius: 8,
-    padding: 15,
+    padding: 24,
     marginBottom: 18,
   },
   sectionTitle: {
@@ -202,8 +241,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 12,
   },
+  businessSectionTitle: {
+    marginTop: 10,
+  },
   infoRow: {
-    marginBottom: 12,
+    marginBottom: 16,
   },
   label: {
     color: '#D0D0D0',
@@ -217,7 +259,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   outlineButton: {
-    marginTop: 12,
+    marginTop: 10,
     borderWidth: 1,
     borderColor: '#C89F7A',
     borderRadius: 8,
@@ -261,7 +303,8 @@ const styles = StyleSheet.create({
   emptyText: {
     color: '#D0D0D0',
     fontSize: 15,
-    marginBottom: 14,
+    textAlign: 'center',
+    marginBottom: 20,
   },
   secondaryButton: {
     backgroundColor: '#3A3A3A',
@@ -278,11 +321,15 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   logoutWrapper: {
-    marginTop: 12,
+    width: '100%',
+    maxWidth: 600,
+    alignSelf: 'center',
     alignItems: 'center',
   },
   logoutButton: {
     width: '100%',
+    maxWidth: 600,
+    marginTop: 40,
     borderRadius: 8,
     paddingVertical: 12,
     alignItems: 'center',

@@ -23,8 +23,6 @@ Debe permitir que un vendedor:
 
 La IA asiste la carga de datos. No debe publicar informacion sin confirmacion del vendedor.
 
-# <<<<<<< HEAD
-
 ### Propuesta de valor
 
 La plataforma no compite con Mercado Libre o Marketplace como canal de comercio electronico. Su objetivo es ayudar a que una persona pase de "tengo una idea o produzco algo" a "tengo una oferta local visible y se como dar el siguiente paso".
@@ -39,8 +37,6 @@ La IA puede ofrecer orientacion general sobre categorias, comunicacion, canales 
 ### Pitch de problema
 
 > Miles de personas producen algo valioso —impresiones 3D, ceramica, alimentos, textiles— pero no lo venden porque no saben como empezar. La barrera no es el producto: es la falta de guia para formalizarse, comunicar su oferta y encontrar clientes. Al mismo tiempo, quien quiere comprar local no tiene forma simple de descubrir que existe cerca. El resultado: emprendimientos que nunca arrancan, produccion local invisible y dinero que se va a grandes plataformas en lugar de quedarse en la comunidad.
-
-> > > > > > > 34173459a97936f879a1eee1186e18f6e68f14c6
 
 ---
 
@@ -222,14 +218,12 @@ Relaciona usuarios con productores o productos guardados.
 Indices recomendados:
 
 ```js
-producerSchema.index({ location: "2dsphere" });
+producerSchema.index({ location: '2dsphere' });
 producerSchema.index({ category: 1, status: 1 });
-producerSchema.index({ name: "text", description: "text" });
+producerSchema.index({ name: 'text', description: 'text' });
 ```
 
 La contrasena no deberia formar parte del perfil publico. Si se mantiene autenticacion local, debe vivir en `User.passwordHash`, no en `Producer`.
-
-# <<<<<<< HEAD
 
 Decisiones confirmadas:
 
@@ -241,8 +235,6 @@ Decisiones confirmadas:
 - `location.coordinates` se obtiene mediante geocoding con Nominatim o mediante GPS opcional.
 - Sin coordenadas, el perfil puede existir en lista pero no aparece en el mapa.
 - No hay limite geografico; la demo inicial usa Formosa Capital.
-
-> > > > > > > 34173459a97936f879a1eee1186e18f6e68f14c6
 
 ### Product
 
@@ -267,8 +259,14 @@ Indices recomendados:
 
 ```js
 productSchema.index({ producerId: 1, status: 1 });
-productSchema.index({ title: "text", description: "text", tags: "text" });
+productSchema.index({ title: 'text', description: 'text', tags: 'text' });
 ```
+
+Decisiones confirmadas:
+
+- Cada producto pertenece a un solo productor mediante `producerId`.
+- `price` puede ser un numero o la cadena `Consultar`.
+- Las imagenes se almacenan como URLs externas. La carga de archivos queda fuera del MVP.
 
 ### User
 
@@ -370,16 +368,13 @@ POST /api/ai/profile-edit
 
 Cada endpoint debe devolver un borrador, no persistirlo directamente.
 
-# <<<<<<< HEAD
-
 Proveedor inicial:
 
 - Ollama local es el proveedor por defecto.
 - Gemini queda como proveedor alternativo desacoplado, pero no debe bloquear el MVP si sus cuotas o disponibilidad fallan.
 - El cambio de proveedor se controla mediante configuracion, no desde el frontend.
 
-> > > > > > > 34173459a97936f879a1eee1186e18f6e68f14c6
-> > > > > > > Ejemplo de perfil:
+Ejemplo de perfil:
 
 ```json
 {
@@ -410,8 +405,6 @@ DELETE /api/favorites/:id
 
 ## 7. Flujo principal de la aplicacion
 
-# <<<<<<< HEAD
-
 ### Flujo de interfaz MVP
 
 ```text
@@ -433,8 +426,6 @@ La entrada a la app se hace desde una pantalla de acceso con botones de accion c
 - Explorar catálogo
 
 La navegacion debe quedar definida por roles y objetivos, no por pantallas aisladas. Cada flujo debe terminar en una accion concreta: autenticarse, crear perfil, publicar o buscar localmente.
-
-> > > > > > > 34173459a97936f879a1eee1186e18f6e68f14c6
 
 ### Exploracion publica
 
@@ -561,25 +552,6 @@ feat: add buyer favorites
 
 ---
 
-<<<<<<< HEAD
-
-## 11. Decisiones que conviene confirmar
-
-Estas decisiones no bloquean el primer prototipo, pero deben definirse antes de cerrar la arquitectura:
-
-1. ¿Un vendedor puede tener varios perfiles o solo uno?
-2. ¿Un producto puede pertenecer a mas de un vendedor?
-3. ¿La ubicacion se ingresa como localidad, direccion o coordenadas del dispositivo?
-4. ¿Los compradores necesitan cuenta para contactar o solo para guardar favoritos?
-5. ¿Habra moderacion antes de publicar?
-6. ¿Se permitiran precios publicos o solo el estado `Consultar`?
-7. ¿Se almacenaran imagenes localmente o mediante un servicio externo?
-8. ¿Ollama sera obligatorio en desarrollo o existira un proveedor remoto de respaldo?
-9. ¿La publicacion necesita autenticacion desde el primer prototipo?
-10. ¿El alcance geografico inicial sera Formosa Capital, toda la provincia o cualquier localidad?
-
-# Mientras estas decisiones no esten cerradas, conviene usar estados `draft` y `published`, contratos pequenos y servicios reemplazables.
-
 ## 11. Guia de emprendimiento asistida por IA
 
 Esta funcionalidad es el principal diferencial frente a un marketplace. No debe limitarse a redactar perfiles: debe guiar al emprendedor con pasos concretos.
@@ -629,5 +601,3 @@ Pendientes tecnicos:
 5. Definir el mecanismo para corregir perfiles publicados sin moderacion.
 
 Mientras estos pendientes no esten cerrados, conviene usar estados `draft` y `published`, contratos pequenos y servicios reemplazables.
-
-> > > > > > > 34173459a97936f879a1eee1186e18f6e68f14c6

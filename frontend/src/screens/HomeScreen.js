@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   FlatList,
+  Image,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -12,71 +15,39 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import ProductCard from '../components/ProductCard';
+import axios from 'axios';
 import WebMapView, { Marker as WebMarker } from '../components/MapView.web';
 import NativeMapView, { Marker as NativeMapMarker } from '../components/MapView.native';
 
+const API_HOST = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
+const PRODUCERS_API_URL = `http://${API_HOST}:3000/api/producers`;
 const MapComponent = Platform.OS === 'web' ? WebMapView : NativeMapView;
 const MarkerComponent = Platform.OS === 'web' ? WebMarker : NativeMapMarker;
 
 const CATEGORIES = ['Todas', 'Alimentos', 'Artesanías', 'Tecnología', 'Agro'];
 
-const INITIAL_PRODUCTS = [
-  {
-    id: 'miel-organica',
-    title: 'Miel orgánica del monte',
-    description: 'Miel pura cosechada en apiarios familiares de Laguna Naineck.',
-    category: 'Alimentos',
-    price: 7500,
-    tags: ['Miel', 'Regional', 'Orgánico'],
-    coordinate: { latitude: -26.180, longitude: -58.175 },
-  },
-  {
-    id: 'cajon-bananas',
-    title: 'Cajón de bananas',
-    description: 'Bananas frescas de producción formoseña, ideales para comercios.',
-    category: 'Agro',
-    price: 18000,
-    tags: ['Frutas', 'Mayorista', 'Fresco'],
-    coordinate: { latitude: -26.175, longitude: -58.170 },
-  },
-  {
-    id: 'mate-palo-santo',
-    title: 'Mate de madera de palo santo',
-    description: 'Pieza artesanal terminada a mano con cera natural.',
-    category: 'Artesanías',
-    price: 14500,
-    tags: ['Mate', 'Palo Santo', 'Artesanal'],
-    coordinate: { latitude: -26.185, longitude: -58.180 },
-  },
-  {
-    id: 'canasto-chaguar',
-    title: 'Canasto tejido de chaguar',
-    description: 'Canasto decorativo tejido con técnicas tradicionales de la región.',
-    category: 'Artesanías',
-    price: 18500,
-    tags: ['Chaguar', 'Decoración', 'Regional'],
-    coordinate: { latitude: -26.188, longitude: -58.168 },
-  },
-  {
-    id: 'soporte-notebook',
-    title: 'Soporte para notebook 3D',
-    description: 'Soporte liviano y resistente, impreso en PLA reforzado.',
-    category: 'Tecnología',
-    price: 12500,
-    tags: ['Impresión 3D', 'Oficina', 'PLA'],
-    coordinate: { latitude: -26.191, longitude: -58.176 },
-  },
-  {
-    id: 'mandioca-fresca',
-    title: 'Mandioca fresca',
-    description: 'Mandioca recién cosechada, disponible por bolsa o por mayor.',
-    category: 'Agro',
-    price: 4200,
-    tags: ['Hortalizas', 'Local', 'Fresco'],
-    coordinate: { latitude: -26.178, longitude: -58.182 },
-  },
-];
+const normalizeProducer = (producer) => {
+  const coordinates = producer.location?.coordinates;
+  const location = Array.isArray(coordinates) && coordinates.length === 2
+    ? { latitude: coordinates[1], longitude: coordinates[0] }
+    : undefined;
+  const keywordSource = [producer.category, producer.name, producer.description, producer.profileText]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((word) => word.length > 3);
+
+  return {
+    ...producer,
+    id: producer._id || producer.id,
+    description: producer.description || producer.profileText || 'Sin descripción disponible.',
+    keywords: [...new Set(keywordSource)].slice(0, 4),
+    phone: producer.whatsappNumber,
+    image: producer.image,
+    location,
+  };
+};
 
 const NAV_ITEMS = [
   { label: 'Explorar', icon: '🔎' },
@@ -85,17 +56,48 @@ const NAV_ITEMS = [
 ];
 
 export default function HomeScreen({ navigation }) {
-  const [allProducts] = useState(INITIAL_PRODUCTS);
-  const [filteredProducts, setFilteredProducts] = useState(INITIAL_PRODUCTS);
+  const [producers, setProducers] = useState([]);
+  const [filteredProducers, setFilteredProducers] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('Todas');
   const [isMapModalVisible, setMapModalVisible] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+
+  useEffect(() => {
+    const loadProducers = async () => {
+      try {
+        const response = await axios.get(`${PRODUCERS_API_URL}?status=published`);
+        const nextProducers = Array.isArray(response.data)
+          ? response.data.map(normalizeProducer)
+          : [];
+        setProducers(nextProducers);
+        setLoadError('');
+      } catch (error) {
+        console.error('Error loading producers:', error);
+        setLoadError('No pudimos cargar los emprendimientos. Revisá que el backend esté activo.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadProducers();
+  }, []);
+
+  const handleWhatsApp = (phone, producerName) => {
+    if (!phone) return;
+
+    const message = `Hola ${producerName}, vi su perfil en el Hub Productivo Formosa y me gustaría consultar por sus productos.`;
+    const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+
+    Linking.openURL(url).catch((error) => console.error('Error opening WhatsApp', error));
+  };
 
   useEffect(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
-    const nextProducts = allProducts.filter((product) => {
-      const matchesCategory = activeCategory === 'Todas' || product.category === activeCategory;
-      const searchableText = [product.title, product.description, ...product.tags]
+    const nextProducers = producers.filter((producer) => {
+      const matchesCategory = activeCategory === 'Todas' || producer.category === activeCategory;
+      const searchableText = [producer.name, producer.description, ...producer.keywords]
         .join(' ')
         .toLowerCase();
       const matchesSearch = !normalizedQuery || searchableText.includes(normalizedQuery);
@@ -103,14 +105,14 @@ export default function HomeScreen({ navigation }) {
       return matchesCategory && matchesSearch;
     });
 
-    setFilteredProducts(nextProducts);
-  }, [activeCategory, allProducts, searchQuery]);
+    setFilteredProducers(nextProducers);
+  }, [activeCategory, producers, searchQuery]);
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.shell}>
         <View style={styles.header}>
-          <Text style={styles.brand}>🌱 TACHYON DREAM FORMOSA</Text>
+          <Text numberOfLines={1} style={styles.brand}>🌱 TACHYON DREAM FORMOSA</Text>
 
           <View style={styles.headerActions}>
             {NAV_ITEMS.map((item) => (
@@ -120,6 +122,8 @@ export default function HomeScreen({ navigation }) {
                 onPress={() => {
                   if (item.label === 'Perfil') {
                     navigation.navigate('Profile');
+                  } else if (item.label === 'Publicar') {
+                    navigation.navigate('AddProduct');
                   }
                 }}
                 style={[styles.headerButton, item.primary && styles.primaryHeaderButton]}
@@ -139,28 +143,33 @@ export default function HomeScreen({ navigation }) {
 
         <FlatList
           contentContainerStyle={styles.feedContent}
-          data={filteredProducts}
-          keyExtractor={(item) => item.id}
+          data={filteredProducers}
+          keyExtractor={(item) => item.id.toString()}
           numColumns={Platform.OS === 'web' ? 3 : 1}
           columnWrapperStyle={Platform.OS === 'web' ? styles.columnWrapper : null}
-          ListEmptyComponent={
+          ListEmptyComponent={isLoading ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyTitle}>No encontramos productos</Text>
-              <Text style={styles.emptyText}>Probá con otra búsqueda o categoría.</Text>
+              <ActivityIndicator color="#C89F7A" size="large" />
+              <Text style={styles.emptyText}>Cargando emprendimientos...</Text>
             </View>
-          }
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyTitle}>{loadError || 'No encontramos productores'}</Text>
+              {!loadError ? <Text style={styles.emptyText}>Probá con otra búsqueda o categoría.</Text> : null}
+            </View>
+          )}
           ListHeaderComponent={
             <View style={styles.headerSection}>
               <Text style={styles.heroTitle}>Lo mejor de nuestra tierra, cerca tuyo.</Text>
               <Text style={styles.heroSubtitle}>
-                Descubrí productos auténticos de productores formoseños.
+                Descubrí emprendimientos auténticos de productores formoseños.
               </Text>
 
               <View style={styles.searchBox}>
                 <TextInput
-                  accessibilityLabel="Buscar productos"
+                  accessibilityLabel="Buscar productores"
                   onChangeText={setSearchQuery}
-                  placeholder="Buscar productos, tags o descripciones..."
+                  placeholder="Buscar productores, rubros o palabras clave..."
                   placeholderTextColor="#D0D0D0"
                   style={styles.searchInput}
                   value={searchQuery}
@@ -203,14 +212,42 @@ export default function HomeScreen({ navigation }) {
               </ScrollView>
 
               <View style={styles.resultsHeader}>
-                <Text style={styles.sectionTitle}>Productos destacados</Text>
-                <Text style={styles.resultCount}>{filteredProducts.length} disponibles</Text>
+                <Text style={styles.sectionTitle}>Emprendimientos Destacados</Text>
+                <Text style={styles.resultCount}>{filteredProducers.length} disponibles</Text>
               </View>
             </View>
           }
-          renderItem={({ item }) => (
+          renderItem={({ item: producer }) => (
             <View style={styles.cardWrapper}>
-              <ProductCard product={item} />
+              <View style={styles.producerCard}>
+                <Image
+                  accessibilityLabel={`Imagen de ${producer.name}`}
+                  source={{ uri: producer.image || 'https://picsum.photos/400/200' }}
+                  style={styles.producerImage}
+                />
+                <View style={styles.producerContent}>
+                  <Text numberOfLines={2} style={styles.producerName}>{producer.name}</Text>
+                  <Text numberOfLines={2} style={styles.producerDescription}>{producer.description}</Text>
+                  <View style={styles.producerTags}>
+                    <View style={styles.categoryTag}>
+                      <Text style={styles.categoryTagText}>{producer.category}</Text>
+                    </View>
+                    {producer.keywords.slice(0, 2).map((keyword) => (
+                      <View key={keyword} style={styles.keywordTag}>
+                        <Text style={styles.keywordTagText}>{keyword}</Text>
+                      </View>
+                    ))}
+                  </View>
+                    <Pressable
+                      accessibilityLabel={`Contactar a ${producer.name} por WhatsApp`}
+                      accessibilityRole="button"
+                      onPress={() => handleWhatsApp(producer.phone, producer.name)}
+                      style={({ pressed }) => [styles.whatsappButton, pressed && styles.whatsappButtonPressed]}
+                    >
+                      <Text style={styles.whatsappButtonText}>Contactar por WhatsApp</Text>
+                    </Pressable>
+                </View>
+              </View>
             </View>
           )}
           showsVerticalScrollIndicator={false}
@@ -240,17 +277,17 @@ export default function HomeScreen({ navigation }) {
             }}
             style={styles.map}
           >
-            {filteredProducts.map((product) => {
-              if (!product.coordinate) {
+            {filteredProducers.map((producer) => {
+              if (!producer.location) {
                 return null;
               }
 
               return (
                 <MarkerComponent
-                  coordinate={product.coordinate}
-                  key={product.id}
-                  title={product.title}
-                  description={product.category}
+                  coordinate={producer.location}
+                  key={producer.id}
+                  title={producer.name}
+                  description={producer.category}
                 />
               );
             })}
@@ -269,26 +306,30 @@ const styles = StyleSheet.create({
   shell: {
     flex: 1,
     width: '100%',
-    maxWidth: 1000,
     alignSelf: 'center',
   },
   header: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#C89F7A',
     paddingHorizontal: 20,
     paddingVertical: 16,
+    gap: 12,
   },
   brand: {
+    flexShrink: 1,
     color: '#FFFFFF',
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '900',
     letterSpacing: 0.2,
   },
   headerActions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
+    justifyContent: 'flex-end',
     gap: 10,
   },
   headerButton: {
@@ -302,7 +343,7 @@ const styles = StyleSheet.create({
   },
   headerButtonText: {
     color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
   },
   primaryHeaderButtonText: {
@@ -410,8 +451,77 @@ const styles = StyleSheet.create({
   cardWrapper: {
     flex: 1,
     alignItems: 'center',
-    marginTop: 14,
-    minWidth: 220,
+    minWidth: 280,
+    maxWidth: 320,
+    margin: 10,
+  },
+  producerCard: {
+    width: '100%',
+    borderRadius: 8,
+    backgroundColor: '#333333',
+    overflow: 'hidden',
+  },
+  producerImage: {
+    width: '100%',
+    height: 140,
+    resizeMode: 'cover',
+  },
+  producerContent: {
+    padding: 16,
+  },
+  producerName: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  producerDescription: {
+    color: '#D0D0D0',
+    fontSize: 14,
+    marginBottom: 12,
+  },
+  producerTags: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  categoryTag: {
+    borderRadius: 6,
+    backgroundColor: '#C89F7A',
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+  },
+  categoryTagText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  keywordTag: {
+    borderRadius: 6,
+    backgroundColor: '#444444',
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+  },
+  keywordTagText: {
+    color: '#EAE0D5',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  whatsappButton: {
+    alignItems: 'center',
+    backgroundColor: '#25D366',
+    borderRadius: 8,
+    marginTop: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+  },
+  whatsappButtonPressed: {
+    backgroundColor: '#1DA851',
+  },
+  whatsappButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
   },
   modalContainer: {
     flex: 1,

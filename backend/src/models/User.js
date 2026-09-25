@@ -1,19 +1,11 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema(
   {
-    username: {
+    name: {
       type: String,
       required: true,
-      unique: true,
       trim: true,
-      lowercase: true,
-      minlength: 3,
-      validate: {
-        validator: (value) => !/\s/.test(value),
-        message: "El nombre de usuario no puede contener espacios.",
-      },
-      match: /^[a-z0-9._-]+$/,
     },
     email: {
       type: String,
@@ -21,10 +13,6 @@ const userSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
       trim: true,
-      validate: {
-        validator: (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value),
-        message: "El email no tiene un formato válido.",
-      },
     },
     passwordHash: {
       type: String,
@@ -32,13 +20,11 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      required: true,
-      enum: ["client", "producer"],
+      enum: ['buyer', 'producer', 'admin'],
+      default: 'buyer',
     },
   },
-  {
-    timestamps: true,
-  },
+  { timestamps: true }
 );
 
-module.exports = mongoose.model("User", userSchema);
+module.exports = mongoose.model('User', userSchema);
