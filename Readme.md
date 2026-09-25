@@ -1,6 +1,6 @@
-# Hub Productivo Formosa
+# Tachyon Dream
 
-Hub Productivo es una plataforma web y mobile para descubrir, visibilizar y activar emprendimientos locales de Formosa. Conecta productores con compradores mediante perfiles públicos, búsqueda, mapa y contacto directo por WhatsApp. Además, incorpora un asistente de IA que ayuda a transformar una idea de negocio en una propuesta estructurada, un plan inicial y un checklist legal orientativo.
+Tachyon Dream es una plataforma web y mobile para descubrir, visibilizar y activar emprendimientos locales de Formosa. Conecta productores con compradores mediante perfiles públicos, búsqueda, mapa y contacto directo por WhatsApp. Además, incorpora un asistente de IA que ayuda a transformar una idea de negocio en una propuesta estructurada, un plan inicial y un checklist legal orientativo.
 
 El proyecto fue desarrollado como un MVP para hackathon con React Native + Expo en el frontend, Node.js + Express en el backend y MongoDB como base de datos.
 
