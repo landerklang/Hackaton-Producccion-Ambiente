@@ -11,7 +11,19 @@ A 24-hour React Native mobile MVP to connect local producers with buyers in Form
 - **AI Assistant:** Google Gemini API / OpenAI API (Structured JSON output mode).
 - **Maps & Geolocation:** `react-native-maps` + MongoDB `2dsphere` index for location-based queries.
 
-## 3. Core Entities & Data Model (MongoDB)
+## 3. UI & Styling Guidelines
+
+All frontend components and screens should follow the **Tierra y Artesanía** theme to create a warm, approachable visual identity rooted in local production and craftsmanship.
+
+- **Theme Name:** Tierra y Artesanía
+- **Main Background:** `#F5F4F2` (Warm light gray)
+- **Surface/Cards:** `#FFFFFF`
+- **Primary Accent:** `#C89F7A` (Light wood/sand brown)
+- **Main Text:** `#2C2C2C` (Charcoal)
+- **Secondary Text:** `#5A5A5A`
+- **Chip/Muted Background:** `#EAE0D5`
+
+## 4. Core Entities & Data Model (MongoDB)
 
 ### Producer (Collection: `producers`)
 - `_id`: ObjectId
@@ -33,7 +45,7 @@ A 24-hour React Native mobile MVP to connect local producers with buyers in Form
 - `tags`: [String] (e.g., ["miel", "organico"])
 - `metadata`: Object (Flexible schema for dynamic attributes based on category)
 
-## 4. Key Screens (React Native)
+## 5. Key Screens (React Native)
 
 1. **Home / Dashboard Screen:**
    - Search bar component.
@@ -51,7 +63,7 @@ A 24-hour React Native mobile MVP to connect local producers with buyers in Form
    - TextInput for natural language input ("Describe what you sell").
    - Backend endpoint `/api/products/ai-generate` calls LLM, receives JSON, and creates the `Product` document.
 
-## 5. Technical Constraints & Hackathon Shortcuts
+ ## 6. Technical Constraints & Hackathon Shortcuts
 - Use Expo Go for testing to avoid Android Studio/Xcode build times.
 - Mock image uploads: Use direct image URLs or a simple Cloudinary endpoint. Do not build custom file storage.
 - Keep the map scope centered on Formosa coordinates by default (`latitude: -26.1849, longitude: -58.1731`).

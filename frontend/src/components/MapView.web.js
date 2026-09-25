@@ -1,34 +1,39 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 export function Marker() {
   return null;
 }
 
-export default function MapView({ children, style }) {
+export default function MapView({ initialRegion, style }) {
+  const latitude = initialRegion?.latitude ?? -26.1849;
+  const longitude = initialRegion?.longitude ?? -58.1731;
+  const zoom = initialRegion?.latitudeDelta ? 12 : 11;
+  const mapUrl = `https://www.google.com/maps?q=${latitude},${longitude}&z=${zoom}&output=embed`;
+
   return (
-    <View style={[styles.mapFallback, style]}>
-      <Text style={styles.title}>Mapa disponible en la app móvil</Text>
-      <Text style={styles.coordinates}>Formosa, Argentina</Text>
-      {children}
+    <View style={[styles.container, style]}>
+      <iframe
+        title="Google Map"
+        src={mapUrl}
+        style={styles.iframe}
+        loading="lazy"
+        referrerPolicy="no-referrer-when-downgrade"
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  mapFallback: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#DDEDE3',
+  container: {
+    flex: 1,
+    backgroundColor: '#111111',
+    overflow: 'hidden',
   },
-  title: {
-    color: '#17633F',
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  coordinates: {
-    marginTop: 6,
-    color: '#557164',
-    fontSize: 14,
+  iframe: {
+    width: '100%',
+    height: '100%',
+    border: 0,
+    backgroundColor: '#111111',
   },
 });
