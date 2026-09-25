@@ -49,7 +49,6 @@ const normalizeProducer = (producer) => {
 };
 
 const NAV_ITEMS = [
-  { label: 'Explorar', icon: '🔎' },
   { label: 'Publicar', icon: '✦', primary: true },
   { label: 'Perfil', icon: '👤' },
 ];
