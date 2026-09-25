@@ -226,39 +226,30 @@ export default function HomeScreen() {
             </Pressable>
           </View>
 
-          {Platform.OS === 'web' ? (
-            <View style={styles.mapFallback}>
-              <Text style={styles.mapFallbackTitle}>Mapa disponible en la app móvil</Text>
-              <Text style={styles.mapFallbackText}>
-                Abrí esta vista en Android o iOS para ver los puntos geográficos.
-              </Text>
-            </View>
-          ) : (
-            <MapComponent
-              initialRegion={{
-                latitude: -26.1849,
-                longitude: -58.1731,
-                latitudeDelta: 0.05,
-                longitudeDelta: 0.05,
-              }}
-              style={styles.map}
-            >
-              {filteredProducts.map((product) => {
-                if (!product.coordinate) {
-                  return null;
-                }
+          <MapComponent
+            initialRegion={{
+              latitude: -26.1849,
+              longitude: -58.1731,
+              latitudeDelta: 0.05,
+              longitudeDelta: 0.05,
+            }}
+            style={styles.map}
+          >
+            {filteredProducts.map((product) => {
+              if (!product.coordinate) {
+                return null;
+              }
 
-                return (
-                  <MarkerComponent
-                    coordinate={product.coordinate}
-                    key={product.id}
-                    title={product.title}
-                    description={product.category}
-                  />
-                );
-              })}
-            </MapComponent>
-          )}
+              return (
+                <MarkerComponent
+                  coordinate={product.coordinate}
+                  key={product.id}
+                  title={product.title}
+                  description={product.category}
+                />
+              );
+            })}
+          </MapComponent>
         </View>
       </Modal>
     </SafeAreaView>
