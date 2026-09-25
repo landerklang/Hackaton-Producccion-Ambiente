@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import HomeScreen from '../screens/HomeScreen';
 import AIPanelScreen from '../screens/AIPanelScreen';
+import AddProductScreen from '../screens/AddProductScreen';
 import AuthEntryScreen from '../screens/AuthEntryScreen';
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
@@ -54,6 +55,7 @@ function MainNavigator({ setIsAuthenticated }) {
       />
       <MainStack.Screen name="BuyerForm" component={BuyerFormScreen} options={{ title: 'Perfil del comprador' }} />
       <MainStack.Screen name="ProducerForm" component={ProducerFormScreen} options={{ title: 'Perfil del productor' }} />
+      <MainStack.Screen name="AddProduct" component={AddProductScreen} />
       <MainStack.Screen name="Profile">
         {(props) => <ProfileScreen {...props} setIsAuthenticated={setIsAuthenticated} />}
       </MainStack.Screen>
