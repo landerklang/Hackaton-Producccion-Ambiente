@@ -98,9 +98,7 @@ const generateProductFromText = async (req, res) => {
     });
 
     const generatedText = response.text;
-    const product = JSON.parse(generatedText);
-
-    return res.status(200).json(product);
+    return res.status(200).json(JSON.parse(generatedText));
   } catch (error) {
     console.error('Product generation failed:', error.message);
     return res.status(500).json({ error: 'Unable to generate product data.' });
