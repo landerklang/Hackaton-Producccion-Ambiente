@@ -20,6 +20,7 @@ export default function AIPanelScreen() {
   const [answer, setAnswer] = useState('');
   const [questionIndex, setQuestionIndex] = useState(0);
   const [profile, setProfile] = useState(null);
+  const [editRequest, setEditRequest] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -49,6 +50,31 @@ export default function AIPanelScreen() {
       setProfile(response.data);
     } catch (error) {
       setErrorMessage(error.response?.data?.error || 'No pudimos crear tu perfil. Revisá la conexión e intentá nuevamente.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleEdit = async () => {
+    const trimmedRequest = editRequest.trim();
+
+    if (!trimmedRequest) {
+      setErrorMessage('Escribí qué querés cambiar en tu perfil.');
+      return;
+    }
+
+    setIsLoading(true);
+    setErrorMessage('');
+    const editMessages = [...messages, { role: 'user', content: trimmedRequest }];
+    setMessages(editMessages);
+    setEditRequest('');
+
+    try {
+      const response = await axios.post(API_URL, { messages: editMessages, profile });
+      setProfile(response.data);
+      setMessages([...editMessages, { role: 'assistant', content: 'Listo, actualicé tu perfil.' }]);
+    } catch (error) {
+      setErrorMessage(error.response?.data?.error || 'No pudimos actualizar el perfil. Intentá nuevamente.');
     } finally {
       setIsLoading(false);
     }
@@ -84,19 +110,39 @@ export default function AIPanelScreen() {
         />
       ) : null}
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityState={{ busy: isLoading, disabled: isLoading || Boolean(profile) }}
-        disabled={isLoading || Boolean(profile)}
-        onPress={handleAnswer}
-        style={({ pressed }) => [styles.button, pressed && styles.buttonPressed, isLoading && styles.buttonDisabled]}
-      >
-        {isLoading ? (
-          <ActivityIndicator color="#FFFFFF" />
-        ) : (
-          <Text style={styles.buttonText}>{profile ? 'Perfil generado' : 'Continuar'}</Text>
-        )}
-      </Pressable>
+      {profile ? (
+        <>
+          <TextInput
+            accessibilityLabel="Edición del perfil"
+            multiline
+            onChangeText={setEditRequest}
+            placeholder="Ej: Cambiá la descripción y agregá souvenirs personalizados"
+            placeholderTextColor="#718096"
+            style={styles.input}
+            textAlignVertical="top"
+            value={editRequest}
+          />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ busy: isLoading }}
+            disabled={isLoading}
+            onPress={handleEdit}
+            style={({ pressed }) => [styles.button, pressed && styles.buttonPressed, isLoading && styles.buttonDisabled]}
+          >
+            {isLoading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.buttonText}>Actualizar perfil</Text>}
+          </Pressable>
+        </>
+      ) : (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ busy: isLoading }}
+          disabled={isLoading}
+          onPress={handleAnswer}
+          style={({ pressed }) => [styles.button, pressed && styles.buttonPressed, isLoading && styles.buttonDisabled]}
+        >
+          {isLoading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.buttonText}>Continuar</Text>}
+        </Pressable>
+      )}
 
       {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
 
@@ -104,7 +150,17 @@ export default function AIPanelScreen() {
         <View style={styles.result}>
           <Text style={styles.resultTitle}>Borrador de tu perfil</Text>
           <Text style={styles.profileTitle}>{profile.name || 'Tu emprendimiento'}</Text>
+          {profile.category ? <Text style={styles.profileMeta}>{profile.category}</Text> : null}
           <Text style={styles.profileText}>{profile.profileText}</Text>
+          {profile.products?.length ? (
+            <Text style={styles.profileMeta}>Productos: {profile.products.join(', ')}</Text>
+          ) : null}
+          {profile.locationText ? <Text style={styles.profileMeta}>Ubicación: {profile.locationText}</Text> : null}
+          {profile.instagram || profile.whatsappNumber ? (
+            <Text style={styles.profileMeta}>
+              Contacto: {[profile.whatsappNumber, profile.instagram].filter(Boolean).join(' · ')}
+            </Text>
+          ) : null}
           {profile.missingFields?.length ? (
             <Text style={styles.missing}>Para completar: {profile.missingFields.join(', ')}</Text>
           ) : null}
@@ -226,6 +282,12 @@ const styles = StyleSheet.create({
     color: '#344054',
     fontSize: 15,
     lineHeight: 22,
+  },
+  profileMeta: {
+    marginTop: 10,
+    color: '#667085',
+    fontSize: 13,
+    lineHeight: 19,
   },
   missing: {
     marginTop: 14,
