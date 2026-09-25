@@ -60,6 +60,7 @@ export default function HomeScreen({ navigation, currentUser }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('Todas');
   const [isMapModalVisible, setMapModalVisible] = useState(false);
+  const [selectedProducer, setSelectedProducer] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const visibleNavItems = NAV_ITEMS.filter(
@@ -236,43 +237,101 @@ export default function HomeScreen({ navigation, currentUser }) {
           renderItem={({ item: producer }) => (
             <View style={styles.cardWrapper}>
               <View style={styles.producerCard}>
-                <Image
-                  accessibilityLabel={`Imagen de ${producer.name}`}
-                  source={{ uri: producer.image || 'https://picsum.photos/400/200' }}
-                  style={styles.producerImage}
-                />
-                <View style={styles.producerContent}>
-                  <Text numberOfLines={2} style={styles.producerName}>{producer.name}</Text>
-                  <Text numberOfLines={2} style={styles.producerDescription}>{producer.description}</Text>
-                  <View style={styles.producerTags}>
-                    <View style={styles.categoryTag}>
-                      <Text style={styles.categoryTagText}>{producer.category}</Text>
-                    </View>
-                    {producer.keywords.slice(0, 2).map((keyword) => (
-                      <View key={keyword} style={styles.keywordTag}>
-                        <Text style={styles.keywordTagText}>{keyword}</Text>
+                <Pressable
+                  accessibilityLabel={`Ver detalles de ${producer.name}`}
+                  accessibilityRole="button"
+                  onPress={() => setSelectedProducer(producer)}
+                  style={({ hovered, pressed }) => [
+                    styles.producerDetails,
+                    hovered && styles.interactiveHovered,
+                    pressed && styles.interactivePressed,
+                  ]}
+                >
+                  <Image
+                    accessibilityLabel={`Imagen de ${producer.name}`}
+                    source={{ uri: producer.image || 'https://picsum.photos/400/200' }}
+                    style={styles.producerImage}
+                  />
+                  <View style={styles.producerContent}>
+                    <Text numberOfLines={2} style={styles.producerName}>{producer.name}</Text>
+                    <Text numberOfLines={2} style={styles.producerDescription}>{producer.description}</Text>
+                    <View style={styles.producerTags}>
+                      <View style={styles.categoryTag}>
+                        <Text style={styles.categoryTagText}>{producer.category}</Text>
                       </View>
-                    ))}
+                      {producer.keywords.slice(0, 2).map((keyword) => (
+                        <View key={keyword} style={styles.keywordTag}>
+                          <Text style={styles.keywordTagText}>{keyword}</Text>
+                        </View>
+                      ))}
+                    </View>
+                    <Text style={styles.detailsHint}>Ver descripción completa</Text>
                   </View>
-                    <Pressable
-                      accessibilityLabel={`Contactar a ${producer.name} por WhatsApp`}
-                      accessibilityRole="button"
-                      onPress={() => handleWhatsApp(producer.phone, producer.name)}
-                      style={({ hovered, pressed }) => [
-                        styles.whatsappButton,
-                        hovered && styles.interactiveHovered,
-                        pressed && styles.whatsappButtonPressed,
-                      ]}
-                    >
-                      <Text style={styles.whatsappButtonText}>Contactar por WhatsApp</Text>
-                    </Pressable>
-                </View>
+                </Pressable>
+                <Pressable
+                  accessibilityLabel={`Contactar a ${producer.name} por WhatsApp`}
+                  accessibilityRole="button"
+                  onPress={() => handleWhatsApp(producer.phone, producer.name)}
+                  style={({ hovered, pressed }) => [
+                    styles.whatsappButton,
+                    hovered && styles.interactiveHovered,
+                    pressed && styles.whatsappButtonPressed,
+                  ]}
+                >
+                  <Text style={styles.whatsappButtonText}>Contactar por WhatsApp</Text>
+                </Pressable>
               </View>
             </View>
           )}
           showsVerticalScrollIndicator={false}
         />
       </View>
+
+      <Modal
+        animationType="slide"
+        onRequestClose={() => setSelectedProducer(null)}
+        transparent
+        visible={Boolean(selectedProducer)}
+      >
+        <View style={styles.detailModalBackdrop}>
+          <View style={styles.detailModal}>
+            <View style={styles.detailModalHeader}>
+              <Text style={styles.detailModalTitle}>Detalle del emprendimiento</Text>
+              <Pressable
+                accessibilityLabel="Cerrar detalle"
+                accessibilityRole="button"
+                onPress={() => setSelectedProducer(null)}
+                style={styles.detailCloseButton}
+              >
+                <Text style={styles.detailCloseText}>Cerrar</Text>
+              </Pressable>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={styles.detailBusinessName}>{selectedProducer?.name || 'Emprendimiento'}</Text>
+              <Text style={styles.detailMeta}>{selectedProducer?.category || 'Sin categoría'}</Text>
+
+              <Text style={styles.detailLabel}>Descripción</Text>
+              <Text style={styles.detailBody}>{selectedProducer?.description || 'Sin descripción disponible.'}</Text>
+
+              {selectedProducer?.addressText ? (
+                <>
+                  <Text style={styles.detailLabel}>Ubicación</Text>
+                  <Text style={styles.detailBody}>{selectedProducer.addressText}</Text>
+                </>
+              ) : null}
+
+              {selectedProducer?.whatsappNumber || selectedProducer?.instagram ? (
+                <>
+                  <Text style={styles.detailLabel}>Canales de contacto</Text>
+                  {selectedProducer?.whatsappNumber ? <Text style={styles.detailBody}>WhatsApp: {selectedProducer.whatsappNumber}</Text> : null}
+                  {selectedProducer?.instagram ? <Text style={styles.detailBody}>Instagram: {selectedProducer.instagram}</Text> : null}
+                </>
+              ) : null}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       <Modal
         animationType="slide"
@@ -489,6 +548,10 @@ const styles = StyleSheet.create({
     elevation: 3,
     overflow: 'hidden',
   },
+  producerDetails: {
+    overflow: 'hidden',
+    borderRadius: 12,
+  },
   producerImage: {
     width: '100%',
     height: 140,
@@ -546,6 +609,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
   },
+  detailsHint: {
+    color: '#285C8D',
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 12,
+  },
   whatsappButton: {
     alignItems: 'center',
     backgroundColor: '#25D366',
@@ -561,6 +630,67 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '800',
+  },
+  detailModalBackdrop: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(20, 35, 50, 0.45)',
+  },
+  detailModal: {
+    width: '100%',
+    maxHeight: '85%',
+    padding: 24,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    backgroundColor: '#FFFFFF',
+  },
+  detailModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 20,
+  },
+  detailModalTitle: {
+    flex: 1,
+    color: '#2D2D2D',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  detailCloseButton: {
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    backgroundColor: '#EAF3FB',
+  },
+  detailCloseText: {
+    color: '#285C8D',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  detailBusinessName: {
+    color: '#2D2D2D',
+    fontSize: 24,
+    fontWeight: '900',
+  },
+  detailMeta: {
+    color: '#6C757D',
+    fontSize: 15,
+    marginTop: 4,
+    marginBottom: 18,
+  },
+  detailLabel: {
+    color: '#285C8D',
+    fontSize: 13,
+    fontWeight: '800',
+    marginTop: 16,
+    marginBottom: 5,
+    textTransform: 'uppercase',
+  },
+  detailBody: {
+    color: '#2D2D2D',
+    fontSize: 15,
+    lineHeight: 23,
   },
   modalContainer: {
     flex: 1,

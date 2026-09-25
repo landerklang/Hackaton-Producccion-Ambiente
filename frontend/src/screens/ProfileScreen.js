@@ -4,6 +4,7 @@ import axios from 'axios';
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   Platform,
   Pressable,
   SafeAreaView,
@@ -16,30 +17,30 @@ import {
 
 const API_HOST = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
 const PRODUCERS_API_URL = `http://${API_HOST}:3000/api/producers`;
+const USER_API_URL = `http://${API_HOST}:3000/api/auth/me`;
 
 export default function ProfileScreen({ navigation, setIsAuthenticated, currentUser, setCurrentUser }) {
   const [user, setUser] = useState({
     name: currentUser?.name || '',
     email: currentUser?.email || '',
-    phone: currentUser?.phone || '',
   });
 
   const [isEditing, setIsEditing] = useState(false);
   const [hasBusiness, setHasBusiness] = useState(false);
   const [business, setBusiness] = useState(null);
   const [loadingBusiness, setLoadingBusiness] = useState(true);
+  const [isBusinessModalVisible, setBusinessModalVisible] = useState(false);
+  const [businessModalSection, setBusinessModalSection] = useState('details');
   const [form, setForm] = useState({ ...user });
 
   useEffect(() => {
     setUser({
       name: currentUser?.name || '',
       email: currentUser?.email || '',
-      phone: currentUser?.phone || '',
     });
     setForm({
       name: currentUser?.name || '',
       email: currentUser?.email || '',
-      phone: currentUser?.phone || '',
     });
   }, [currentUser]);
 
@@ -95,7 +96,7 @@ export default function ProfileScreen({ navigation, setIsAuthenticated, currentU
   const handleSave = async () => {
     try {
       const token = await AsyncStorage.getItem('userToken');
-      const response = await fetch('http://localhost:5000/api/users/update', {
+      const response = await fetch(USER_API_URL, {
         method: 'PUT',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -111,8 +112,15 @@ export default function ProfileScreen({ navigation, setIsAuthenticated, currentU
         throw new Error('User update failed.');
       }
 
-      await AsyncStorage.setItem('userData', JSON.stringify(form));
-      setUser(form);
+      const data = await response.json();
+      const updatedUser = {
+        ...currentUser,
+        ...data.user,
+        role: data.user?.role === 'producer' ? 'productor' : data.user?.role || currentUser?.role,
+      };
+      await AsyncStorage.setItem('userData', JSON.stringify(updatedUser));
+      setCurrentUser(updatedUser);
+      setUser({ name: updatedUser.name || '', email: updatedUser.email || '' });
       setIsEditing(false);
       Alert.alert('Éxito', 'Tus datos han sido actualizados.');
     } catch (error) {
@@ -171,11 +179,6 @@ export default function ProfileScreen({ navigation, setIsAuthenticated, currentU
                   <Text style={styles.value}>{user.email || 'Sin email disponible'}</Text>
                 </View>
 
-                <View style={styles.infoRow}>
-                  <Text style={styles.label}>Teléfono</Text>
-                  <Text style={styles.value}>{user.phone || 'Sin teléfono disponible'}</Text>
-                </View>
-
                 <Pressable
                   accessibilityRole="button"
                   onPress={() => {
@@ -207,16 +210,6 @@ export default function ProfileScreen({ navigation, setIsAuthenticated, currentU
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
-                  style={styles.input}
-                />
-
-                <Text style={styles.label}>Teléfono</Text>
-                <TextInput
-                  value={form.phone}
-                  onChangeText={(value) => handleChange('phone', value)}
-                  placeholder="Teléfono"
-                  placeholderTextColor="#6C757D"
-                  keyboardType="phone-pad"
                   style={styles.input}
                 />
 
@@ -254,17 +247,44 @@ export default function ProfileScreen({ navigation, setIsAuthenticated, currentU
                 </>
               ) : (
                 <View style={styles.businessInfo}>
-                  <Text style={styles.businessName}>{business?.name || 'Negocio registrado'}</Text>
-                  <Text style={styles.businessMeta}>{business?.category || 'Sin categoría'}</Text>
-                  <Text style={styles.businessDescription}>{business?.description || business?.profileText || 'Sin descripción disponible.'}</Text>
+                  <Pressable
+                    accessibilityLabel={`Ver descripción completa de ${business?.name || 'tu negocio'}`}
+                    accessibilityRole="button"
+                    onPress={() => {
+                      setBusinessModalSection('details');
+                      setBusinessModalVisible(true);
+                    }}
+                    style={({ pressed }) => [styles.businessSummary, pressed && styles.businessSummaryPressed]}
+                  >
+                    <Text style={styles.businessName}>{business?.name || 'Negocio registrado'}</Text>
+                    <Text style={styles.businessMeta}>{business?.category || 'Sin categoría'}</Text>
+                    <Text numberOfLines={3} style={styles.businessDescription}>{business?.description || business?.profileText || 'Sin descripción disponible.'}</Text>
+                    <Text style={styles.detailHint}>Ver descripción completa</Text>
+                  </Pressable>
 
-                  {business?.whatsappNumber ? (
-                    <Text style={styles.businessMeta}>WhatsApp: {business.whatsappNumber}</Text>
-                  ) : null}
+                  <View style={styles.modalActionRow}>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => {
+                        setBusinessModalSection('plan');
+                        setBusinessModalVisible(true);
+                      }}
+                      style={({ pressed }) => [styles.modalActionButton, pressed && styles.modalActionButtonPressed]}
+                    >
+                      <Text style={styles.modalActionText}>Plan de negocio</Text>
+                    </Pressable>
 
-                  {business?.instagram ? (
-                    <Text style={styles.businessMeta}>Instagram: {business.instagram}</Text>
-                  ) : null}
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => {
+                        setBusinessModalSection('legal');
+                        setBusinessModalVisible(true);
+                      }}
+                      style={({ pressed }) => [styles.modalActionButton, pressed && styles.modalActionButtonPressed]}
+                    >
+                      <Text style={styles.modalActionText}>Checklist legal</Text>
+                    </Pressable>
+                  </View>
 
                   <Pressable
                     accessibilityRole="button"
@@ -289,6 +309,103 @@ export default function ProfileScreen({ navigation, setIsAuthenticated, currentU
           </View>
         </View>
       </ScrollView>
+
+      <Modal
+        animationType="slide"
+        onRequestClose={() => setBusinessModalVisible(false)}
+        transparent
+        visible={isBusinessModalVisible}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.businessModal}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {businessModalSection === 'plan'
+                  ? 'Plan de negocio'
+                  : businessModalSection === 'legal'
+                    ? 'Checklist legal orientativo'
+                    : 'Descripción del emprendimiento'}
+              </Text>
+              <Pressable
+                accessibilityLabel="Cerrar descripción"
+                accessibilityRole="button"
+                onPress={() => setBusinessModalVisible(false)}
+                style={styles.modalCloseButton}
+              >
+                <Text style={styles.modalCloseText}>Cerrar</Text>
+              </Pressable>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {businessModalSection === 'details' ? (
+                <>
+                  <Text style={styles.modalBusinessName}>{business?.name || 'Negocio registrado'}</Text>
+                  <Text style={styles.modalMeta}>{business?.category || 'Sin categoría'}</Text>
+
+                  <Text style={styles.modalLabel}>Descripción</Text>
+                  <Text style={styles.modalBody}>{business?.description || business?.profileText || 'Sin descripción disponible.'}</Text>
+
+                  {business?.addressText ? (
+                    <>
+                      <Text style={styles.modalLabel}>Ubicación</Text>
+                      <Text style={styles.modalBody}>{business.addressText}</Text>
+                    </>
+                  ) : null}
+
+                  {business?.whatsappNumber || business?.instagram ? (
+                    <>
+                      <Text style={styles.modalLabel}>Canales de contacto</Text>
+                      {business?.whatsappNumber ? <Text style={styles.modalBody}>WhatsApp: {business.whatsappNumber}</Text> : null}
+                      {business?.instagram ? <Text style={styles.modalBody}>Instagram: {business.instagram}</Text> : null}
+                    </>
+                  ) : null}
+
+                  {business?.aiGuide?.businessProfile ? (
+                    <>
+                      <Text style={styles.modalLabel}>Cliente objetivo</Text>
+                      <Text style={styles.modalBody}>{business.aiGuide.businessProfile.customer || 'Sin información disponible.'}</Text>
+                      <Text style={styles.modalLabel}>Oferta</Text>
+                      <Text style={styles.modalBody}>{business.aiGuide.businessProfile.offer || 'Sin información disponible.'}</Text>
+                    </>
+                  ) : null}
+                </>
+              ) : businessModalSection === 'plan' ? (
+                <>
+                  {business?.aiGuide?.plan ? (
+                    <>
+                      <Text style={styles.modalLabel}>Propuesta de valor</Text>
+                      <Text style={styles.modalBody}>{business.aiGuide.plan.valueProposition || 'Sin información disponible.'}</Text>
+                      <Text style={styles.modalLabel}>Primera oferta</Text>
+                      <Text style={styles.modalBody}>{business.aiGuide.plan.firstOffer || 'Sin información disponible.'}</Text>
+                      <Text style={styles.modalLabel}>Estrategia de precio</Text>
+                      <Text style={styles.modalBody}>{business.aiGuide.plan.pricingStrategy || 'Sin información disponible.'}</Text>
+                      <Text style={styles.modalLabel}>Primeros 30 días</Text>
+                      {business.aiGuide.plan.first30DaysPlan?.length ? business.aiGuide.plan.first30DaysPlan.map((item, index) => (
+                        <Text key={`plan-item-${index}`} style={styles.modalListItem}>{`• ${item}`}</Text>
+                      )) : <Text style={styles.modalBody}>Sin información disponible.</Text>}
+                    </>
+                  ) : <Text style={styles.modalBody}>Todavía no hay un plan de negocio generado.</Text>}
+                </>
+              ) : (
+                <>
+                  <Text style={styles.modalNotice}>Esta información es orientativa y no reemplaza asesoría profesional.</Text>
+                  {business?.aiGuide?.legalChecklist?.length ? business.aiGuide.legalChecklist.map((item, index) => (
+                    <Text key={`legal-item-${index}`} style={styles.modalListItem}>{`• ${item}`}</Text>
+                  )) : <Text style={styles.modalBody}>Todavía no hay un checklist legal generado.</Text>}
+                  {business?.aiGuide?.officialSources?.length ? (
+                    <>
+                      <Text style={styles.modalLabel}>Fuentes oficiales</Text>
+                      {business.aiGuide.officialSources.map((item, index) => (
+                        <Text key={`source-item-${index}`} style={styles.modalListItem}>{`• ${item}`}</Text>
+                      ))}
+                    </>
+                  ) : null}
+                </>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -440,6 +557,15 @@ const styles = StyleSheet.create({
   businessInfo: {
     gap: 8,
   },
+  businessSummary: {
+    borderRadius: 8,
+    padding: 10,
+    margin: -10,
+    marginBottom: 2,
+  },
+  businessSummaryPressed: {
+    backgroundColor: '#F1F7FC',
+  },
   businessName: {
     color: '#2D2D2D',
     fontSize: 20,
@@ -456,6 +582,35 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginTop: 4,
   },
+  detailHint: {
+    color: '#285C8D',
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  modalActionRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 16,
+  },
+  modalActionButton: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    backgroundColor: '#EAF3FB',
+  },
+  modalActionButtonPressed: {
+    backgroundColor: '#DCEAF9',
+  },
+  modalActionText: {
+    color: '#285C8D',
+    fontSize: 13,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
   secondaryButton: {
     backgroundColor: '#EAF3FB',
     borderRadius: 8,
@@ -470,6 +625,79 @@ const styles = StyleSheet.create({
     color: '#285C8D',
     fontSize: 15,
     fontWeight: '700',
+  },
+  modalBackdrop: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(20, 35, 50, 0.45)',
+  },
+  businessModal: {
+    width: '100%',
+    maxHeight: '85%',
+    padding: 24,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    backgroundColor: '#FFFFFF',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 20,
+  },
+  modalTitle: {
+    flex: 1,
+    color: '#2D2D2D',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  modalCloseButton: {
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    backgroundColor: '#EAF3FB',
+  },
+  modalCloseText: {
+    color: '#285C8D',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  modalBusinessName: {
+    color: '#2D2D2D',
+    fontSize: 24,
+    fontWeight: '900',
+  },
+  modalMeta: {
+    color: '#6C757D',
+    fontSize: 15,
+    marginTop: 4,
+    marginBottom: 18,
+  },
+  modalLabel: {
+    color: '#285C8D',
+    fontSize: 13,
+    fontWeight: '800',
+    marginTop: 16,
+    marginBottom: 5,
+    textTransform: 'uppercase',
+  },
+  modalBody: {
+    color: '#2D2D2D',
+    fontSize: 15,
+    lineHeight: 23,
+  },
+  modalListItem: {
+    color: '#2D2D2D',
+    fontSize: 15,
+    lineHeight: 23,
+    marginBottom: 7,
+  },
+  modalNotice: {
+    color: '#6C757D',
+    fontSize: 14,
+    lineHeight: 21,
+    marginBottom: 12,
   },
   logoutWrapper: {
     width: '100%',
