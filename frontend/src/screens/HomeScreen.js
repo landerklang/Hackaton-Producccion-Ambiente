@@ -110,7 +110,7 @@ export default function HomeScreen({ navigation }) {
     <SafeAreaView style={styles.container}>
       <View style={styles.shell}>
         <View style={styles.header}>
-          <Text style={styles.brand}>🌱 TACHYON DREAM FORMOSA</Text>
+          <Text numberOfLines={1} style={styles.brand}>🌱 TACHYON DREAM FORMOSA</Text>
 
           <View style={styles.headerActions}>
             {NAV_ITEMS.map((item) => (
@@ -269,26 +269,30 @@ const styles = StyleSheet.create({
   shell: {
     flex: 1,
     width: '100%',
-    maxWidth: 1000,
     alignSelf: 'center',
   },
   header: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#C89F7A',
     paddingHorizontal: 20,
     paddingVertical: 16,
+    gap: 12,
   },
   brand: {
+    flexShrink: 1,
     color: '#FFFFFF',
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '900',
     letterSpacing: 0.2,
   },
   headerActions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
+    justifyContent: 'flex-end',
     gap: 10,
   },
   headerButton: {
@@ -302,7 +306,7 @@ const styles = StyleSheet.create({
   },
   headerButtonText: {
     color: '#FFFFFF',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
   },
   primaryHeaderButtonText: {

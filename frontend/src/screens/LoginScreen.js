@@ -46,6 +46,14 @@ export default function LoginScreen({ navigation, setIsAuthenticated }) {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.formWrapper}>
+          <Pressable
+            accessibilityLabel="Volver a la portada"
+            accessibilityRole="button"
+            onPress={() => navigation.navigate('AuthEntry')}
+            style={({ pressed }) => [styles.backButton, pressed && styles.backButtonPressed]}
+          >
+            <Text style={styles.backButtonText}>← Volver a la portada</Text>
+          </Pressable>
           <Text style={styles.eyebrow}>Ingresar</Text>
           <Text style={styles.title}>Accedé a tu cuenta</Text>
           <Text style={styles.subtitle}>Descubrí productos locales y productores de Formosa.</Text>
@@ -112,6 +120,21 @@ const styles = StyleSheet.create({
     borderColor: '#555555',
     borderRadius: 20,
     padding: 24,
+  },
+  backButton: {
+    alignSelf: 'flex-start',
+    borderRadius: 8,
+    marginBottom: 18,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  backButtonPressed: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  backButtonText: {
+    color: '#C89F7A',
+    fontSize: 14,
+    fontWeight: '800',
   },
   eyebrow: {
     color: '#C89F7A',
