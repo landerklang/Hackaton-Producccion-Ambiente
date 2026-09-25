@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
 import {
-  Pressable,
+  ActivityIndicator,
   Alert,
+  Platform,
+  Pressable,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -11,15 +14,76 @@ import {
   View,
 } from 'react-native';
 
+const API_HOST = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
+const PRODUCERS_API_URL = `http://${API_HOST}:3000/api/producers`;
+
 export default function ProfileScreen({ navigation, setIsAuthenticated, currentUser, setCurrentUser }) {
   const [user, setUser] = useState({
-    name: 'María López',
-    email: 'maria@ejemplo.com',
-    phone: '+54 9 3704 123456',
+    name: currentUser?.name || '',
+    email: currentUser?.email || '',
+    phone: currentUser?.phone || '',
   });
 
   const [isEditing, setIsEditing] = useState(false);
+  const [hasBusiness, setHasBusiness] = useState(false);
+  const [business, setBusiness] = useState(null);
+  const [loadingBusiness, setLoadingBusiness] = useState(true);
   const [form, setForm] = useState({ ...user });
+
+  useEffect(() => {
+    setUser({
+      name: currentUser?.name || '',
+      email: currentUser?.email || '',
+      phone: currentUser?.phone || '',
+    });
+    setForm({
+      name: currentUser?.name || '',
+      email: currentUser?.email || '',
+      phone: currentUser?.phone || '',
+    });
+  }, [currentUser]);
+
+  useEffect(() => {
+    const loadBusiness = async () => {
+      let ownerUserId = currentUser?.id;
+
+      if (!ownerUserId) {
+        const storedUserData = await AsyncStorage.getItem('userData');
+        const storedUser = storedUserData ? JSON.parse(storedUserData) : null;
+        ownerUserId = storedUser?.id;
+      }
+
+      if (!ownerUserId) {
+        setBusiness(null);
+        setHasBusiness(false);
+        setLoadingBusiness(false);
+        return;
+      }
+
+      try {
+        const query = new URLSearchParams({
+          status: 'published',
+          ownerUserId,
+        }).toString();
+        const response = await axios.get(`${PRODUCERS_API_URL}?${query}`);
+        const published = Array.isArray(response.data) ? response.data : [];
+        const firstPublished = published[0] || null;
+        setBusiness(firstPublished);
+        setHasBusiness(Boolean(firstPublished));
+      } catch (error) {
+        console.error('Error loading published business:', error);
+        setBusiness(null);
+        setHasBusiness(false);
+      } finally {
+        setLoadingBusiness(false);
+      }
+    };
+
+    loadBusiness();
+
+    const unsubscribe = navigation.addListener('focus', loadBusiness);
+    return unsubscribe;
+  }, [currentUser?.id, navigation]);
 
   const handleChange = (field, value) => {
     setForm((prev) => ({
@@ -62,6 +126,7 @@ export default function ProfileScreen({ navigation, setIsAuthenticated, currentU
       await AsyncStorage.removeItem('userToken');
       await AsyncStorage.removeItem('userRole');
       await AsyncStorage.removeItem('userHasBusiness');
+      await AsyncStorage.removeItem('userData');
       setCurrentUser({ role: 'comprador', hasBusiness: false });
       setIsAuthenticated(false);
       navigation.getRoot()?.reset({
@@ -88,6 +153,7 @@ export default function ProfileScreen({ navigation, setIsAuthenticated, currentU
           <Text numberOfLines={1} style={styles.headerTitle}>Mi Perfil</Text>
         </View>
       </View>
+
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.innerContainer}>
           <View style={styles.card}>
@@ -97,17 +163,17 @@ export default function ProfileScreen({ navigation, setIsAuthenticated, currentU
               <>
                 <View style={styles.infoRow}>
                   <Text style={styles.label}>Nombre</Text>
-                  <Text style={styles.value}>{user.name}</Text>
+                  <Text style={styles.value}>{user.name || 'Sin nombre disponible'}</Text>
                 </View>
 
                 <View style={styles.infoRow}>
                   <Text style={styles.label}>Email</Text>
-                  <Text style={styles.value}>{user.email}</Text>
+                  <Text style={styles.value}>{user.email || 'Sin email disponible'}</Text>
                 </View>
 
                 <View style={styles.infoRow}>
                   <Text style={styles.label}>Teléfono</Text>
-                  <Text style={styles.value}>{user.phone}</Text>
+                  <Text style={styles.value}>{user.phone || 'Sin teléfono disponible'}</Text>
                 </View>
 
                 <Pressable
@@ -169,26 +235,45 @@ export default function ProfileScreen({ navigation, setIsAuthenticated, currentU
             <View style={styles.card}>
               <Text style={[styles.sectionTitle, styles.businessSectionTitle]}>Mi Negocio</Text>
 
-              {!currentUser.hasBusiness ? (
+              {loadingBusiness ? (
+                <View style={styles.loadingRow}>
+                  <ActivityIndicator color="#C89F7A" size="small" />
+                  <Text style={styles.loadingText}>Cargando negocio...</Text>
+                </View>
+              ) : !hasBusiness ? (
                 <>
                   <Text style={styles.emptyText}>Aún no tienes un negocio registrado.</Text>
 
                   <Pressable
                     accessibilityRole="button"
-                    onPress={() => {}}
+                    onPress={() => navigation.navigate('AIPanel')}
                     style={({ pressed }) => [styles.primaryButton, pressed && styles.primaryButtonPressed]}
                   >
                     <Text style={styles.primaryButtonText}>Crear Negocio con IA</Text>
                   </Pressable>
                 </>
               ) : (
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => navigation.navigate('AddProduct')}
-                  style={({ pressed }) => [styles.secondaryButton, pressed && styles.secondaryButtonPressed]}
-                >
-                  <Text style={styles.secondaryButtonText}>Subir nuevo artículo</Text>
-                </Pressable>
+                <View style={styles.businessInfo}>
+                  <Text style={styles.businessName}>{business?.name || 'Negocio registrado'}</Text>
+                  <Text style={styles.businessMeta}>{business?.category || 'Sin categoría'}</Text>
+                  <Text style={styles.businessDescription}>{business?.description || business?.profileText || 'Sin descripción disponible.'}</Text>
+
+                  {business?.whatsappNumber ? (
+                    <Text style={styles.businessMeta}>WhatsApp: {business.whatsappNumber}</Text>
+                  ) : null}
+
+                  {business?.instagram ? (
+                    <Text style={styles.businessMeta}>Instagram: {business.instagram}</Text>
+                  ) : null}
+
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => navigation.navigate('AIPanel', { existingBusiness: business })}
+                    style={({ pressed }) => [styles.secondaryButton, pressed && styles.secondaryButtonPressed]}
+                  >
+                    <Text style={styles.secondaryButtonText}>Actualizar con IA</Text>
+                  </Pressable>
+                </View>
               )}
             </View>
           ) : null}
@@ -341,19 +426,48 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 20,
   },
+  loadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 8,
+  },
+  loadingText: {
+    color: '#6C757D',
+    fontSize: 14,
+  },
+  businessInfo: {
+    gap: 8,
+  },
+  businessName: {
+    color: '#2D2D2D',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  businessMeta: {
+    color: '#6C757D',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  businessDescription: {
+    color: '#2D2D2D',
+    fontSize: 15,
+    lineHeight: 22,
+    marginTop: 4,
+  },
   secondaryButton: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#74ACDF',
-    borderWidth: 1,
+    backgroundColor: '#EAF3FB',
     borderRadius: 8,
     paddingVertical: 12,
     alignItems: 'center',
+    marginTop: 12,
   },
   secondaryButtonPressed: {
-    backgroundColor: '#E3F2FD',
+    backgroundColor: '#DCEAF9',
   },
   secondaryButtonText: {
-    color: '#74ACDF',
+    color: '#285C8D',
     fontSize: 15,
     fontWeight: '700',
   },
@@ -371,14 +485,14 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#74ACDF',
+    borderColor: '#FF6B6B',
     backgroundColor: 'transparent',
   },
   logoutButtonPressed: {
-    backgroundColor: '#E3F2FD',
+    backgroundColor: 'rgba(255, 107, 107, 0.08)',
   },
   logoutText: {
-    color: '#74ACDF',
+    color: '#FF6B6B',
     fontSize: 15,
     fontWeight: '700',
   },

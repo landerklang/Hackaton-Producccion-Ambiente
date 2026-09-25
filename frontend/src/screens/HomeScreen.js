@@ -66,25 +66,31 @@ export default function HomeScreen({ navigation, currentUser }) {
     (item) => item.label !== 'Publicar' || (currentUser?.role === 'productor' && currentUser.hasBusiness === true),
   );
 
-  useEffect(() => {
-    const loadProducers = async () => {
-      try {
-        const response = await axios.get(`${PRODUCERS_API_URL}?status=published`);
-        const nextProducers = Array.isArray(response.data)
-          ? response.data.map(normalizeProducer)
-          : [];
-        setProducers(nextProducers);
-        setLoadError('');
-      } catch (error) {
-        console.error('Error loading producers:', error);
-        setLoadError('No pudimos cargar los emprendimientos. Revisá que el backend esté activo.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const loadProducers = async () => {
+    try {
+      const response = await axios.get(`${PRODUCERS_API_URL}?status=published`);
+      const nextProducers = Array.isArray(response.data)
+        ? response.data.map(normalizeProducer)
+        : [];
+      setProducers(nextProducers);
+      setLoadError('');
+    } catch (error) {
+      console.error('Error loading producers:', error);
+      setLoadError('No pudimos cargar los emprendimientos. Revisá que el backend esté activo.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  useEffect(() => {
     loadProducers();
-  }, []);
+
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadProducers();
+    });
+
+    return unsubscribe;
+  }, [navigation]);
 
   const handleWhatsApp = (phone, producerName) => {
     if (!phone) return;
@@ -125,7 +131,7 @@ export default function HomeScreen({ navigation, currentUser }) {
                   if (item.label === 'Perfil') {
                     navigation.navigate('Profile');
                   } else if (item.label === 'Publicar') {
-                    navigation.navigate('AddProduct');
+                    navigation.navigate('AIPanel');
                   }
                 }}
                 style={[styles.headerButton, item.primary && styles.primaryHeaderButton]}

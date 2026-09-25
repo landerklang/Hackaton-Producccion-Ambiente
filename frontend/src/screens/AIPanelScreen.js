@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 const API_HOST = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
 const API_URL = `http://${API_HOST}:3000/api/ai/entrepreneur-guide`;
+const PRODUCER_API_URL = `http://${API_HOST}:3000/api/producers`;
 
 const INITIAL_FORM = {
   idea: '',
@@ -14,14 +16,53 @@ const INITIAL_FORM = {
   budget: '',
 };
 
-export default function AIPanelScreen() {
-  const [form, setForm] = useState(INITIAL_FORM);
-  const [guide, setGuide] = useState(null);
+export default function AIPanelScreen({ route, currentUser }) {
+  const initialBusiness = route?.params?.existingBusiness || null;
+
+  const [form, setForm] = useState(() => ({
+    ...INITIAL_FORM,
+    idea: initialBusiness?.description || initialBusiness?.profileText || '',
+    category: initialBusiness?.category || '',
+    location: initialBusiness?.addressText || initialBusiness?.location || 'Formosa',
+  }));
+  const [guide, setGuide] = useState(initialBusiness?.aiGuide || null);
+  const [draftBusiness, setDraftBusiness] = useState(() => (
+    initialBusiness
+      ? {
+          _id: initialBusiness._id || null,
+          name: initialBusiness.name || 'Negocio nuevo',
+          category: initialBusiness.category || 'General',
+          location: initialBusiness.addressText || 'Formosa',
+          description: initialBusiness.description || initialBusiness.profileText || '',
+          customer: initialBusiness.aiGuide?.businessProfile?.customer || '',
+          offer: initialBusiness.aiGuide?.businessProfile?.offer || '',
+          whatsappNumber: initialBusiness.whatsappNumber || '',
+          instagram: initialBusiness.instagram || '',
+        }
+      : null
+  ));
   const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const updateField = (field, value) => {
     setForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const buildDraftFromGuide = (responseData, previousDraft = null) => ({
+    ...(previousDraft || {}),
+    name: responseData?.businessProfile?.name || previousDraft?.name || 'Negocio nuevo',
+    category: responseData?.businessProfile?.category || previousDraft?.category || form.category || 'General',
+    location: responseData?.businessProfile?.location || previousDraft?.location || form.location || 'Formosa',
+    description: responseData?.businessProfile?.description || previousDraft?.description || form.idea || '',
+    customer: responseData?.businessProfile?.customer || previousDraft?.customer || '',
+    offer: responseData?.businessProfile?.offer || previousDraft?.offer || '',
+    whatsappNumber: previousDraft?.whatsappNumber || '',
+    instagram: previousDraft?.instagram || '',
+  });
+
+  const updateDraftField = (field, value) => {
+    setDraftBusiness((current) => ({ ...current, [field]: value }));
   };
 
   const handleGenerateGuide = async () => {
@@ -31,6 +72,7 @@ export default function AIPanelScreen() {
     }
 
     setErrorMessage('');
+    setSuccessMessage('');
     setIsLoading(true);
 
     try {
@@ -44,8 +86,58 @@ export default function AIPanelScreen() {
       });
 
       setGuide(response.data);
+      setDraftBusiness((current) => buildDraftFromGuide(response.data, current));
     } catch (error) {
       setErrorMessage(error.response?.data?.error || 'No pudimos generar la guía. Revisá la conexión e intentá nuevamente.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCreateBusiness = async () => {
+    if (!draftBusiness?.name?.trim()) {
+      setErrorMessage('Poné un nombre para el negocio antes de guardarlo.');
+      return;
+    }
+
+    setErrorMessage('');
+    setSuccessMessage('');
+    setIsLoading(true);
+
+    try {
+      const storedUserData = await AsyncStorage.getItem('userData');
+      const storedUser = storedUserData ? JSON.parse(storedUserData) : null;
+      const ownerUserId = currentUser?.id || storedUser?.id;
+
+      if (!ownerUserId) {
+        setErrorMessage('No pudimos identificar tu usuario. Cerrá sesión e ingresá nuevamente.');
+        return;
+      }
+
+      const payload = {
+        name: draftBusiness.name.trim(),
+        category: draftBusiness.category.trim() || 'General',
+        description: draftBusiness.description.trim() || 'Negocio generado con IA.',
+        profileText: [draftBusiness.description, draftBusiness.offer, draftBusiness.customer].filter(Boolean).join(' · '),
+        whatsappNumber: draftBusiness.whatsappNumber?.trim() || undefined,
+        instagram: draftBusiness.instagram?.trim() || undefined,
+        addressText: draftBusiness.location?.trim() || 'Formosa',
+        status: 'published',
+        aiGuide: guide,
+        ownerUserId,
+      };
+
+      if (draftBusiness._id) {
+        await axios.put(`${PRODUCER_API_URL}/${draftBusiness._id}`, payload);
+        setSuccessMessage('Negocio actualizado con éxito. Volviendo al inicio...');
+      } else {
+        await axios.post(PRODUCER_API_URL, payload);
+        setSuccessMessage('Negocio creado con éxito. Volviendo al inicio...');
+      }
+
+      navigation.navigate('Home');
+    } catch (error) {
+      setErrorMessage(error.response?.data?.error || 'No pudimos crear el negocio.');
     } finally {
       setIsLoading(false);
     }
@@ -127,6 +219,7 @@ export default function AIPanelScreen() {
       </Pressable>
 
       {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
+      {successMessage ? <Text style={styles.success}>{successMessage}</Text> : null}
 
       {guide ? (
         <View style={styles.resultCard}>
@@ -199,6 +292,87 @@ export default function AIPanelScreen() {
 
           <Text style={styles.sectionLabel}>Advertencia</Text>
           <Text style={styles.resultText}>{guide.warning || 'Esto es orientación general.'}</Text>
+        </View>
+      ) : null}
+
+      {draftBusiness ? (
+        <View style={styles.editCard}>
+          <Text style={styles.resultTitle}>Editar antes de crear</Text>
+
+          <Text style={styles.label}>Nombre del negocio</Text>
+          <TextInput
+            onChangeText={(value) => updateDraftField('name', value)}
+            style={styles.input}
+            value={draftBusiness.name}
+          />
+
+          <Text style={styles.label}>Categoría</Text>
+          <TextInput
+            onChangeText={(value) => updateDraftField('category', value)}
+            style={styles.input}
+            value={draftBusiness.category}
+          />
+
+          <Text style={styles.label}>Localidad</Text>
+          <TextInput
+            onChangeText={(value) => updateDraftField('location', value)}
+            style={styles.input}
+            value={draftBusiness.location}
+          />
+
+          <Text style={styles.label}>Descripción</Text>
+          <TextInput
+            multiline
+            onChangeText={(value) => updateDraftField('description', value)}
+            style={[styles.input, styles.textArea]}
+            textAlignVertical="top"
+            value={draftBusiness.description}
+          />
+
+          <Text style={styles.label}>Cliente objetivo</Text>
+          <TextInput
+            onChangeText={(value) => updateDraftField('customer', value)}
+            style={styles.input}
+            value={draftBusiness.customer}
+          />
+
+          <Text style={styles.label}>Oferta principal</Text>
+          <TextInput
+            multiline
+            onChangeText={(value) => updateDraftField('offer', value)}
+            style={[styles.input, styles.textArea]}
+            textAlignVertical="top"
+            value={draftBusiness.offer}
+          />
+
+          <Text style={styles.label}>WhatsApp</Text>
+          <TextInput
+            keyboardType="phone-pad"
+            onChangeText={(value) => updateDraftField('whatsappNumber', value)}
+            placeholder="54937..."
+            placeholderTextColor="#718096"
+            style={styles.input}
+            value={draftBusiness.whatsappNumber}
+          />
+
+          <Text style={styles.label}>Instagram</Text>
+          <TextInput
+            autoCapitalize="none"
+            onChangeText={(value) => updateDraftField('instagram', value)}
+            placeholder="@tu_negocio"
+            placeholderTextColor="#718096"
+            style={styles.input}
+            value={draftBusiness.instagram}
+          />
+
+          <Pressable
+            accessibilityRole="button"
+            disabled={isLoading}
+            onPress={handleCreateBusiness}
+            style={({ pressed }) => [styles.primaryButton, pressed && styles.primaryButtonPressed, isLoading && styles.buttonDisabled]}
+          >
+            <Text style={styles.primaryButtonText}>Crear negocio</Text>
+          </Pressable>
         </View>
       ) : null}
     </ScrollView>
@@ -278,6 +452,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
+  success: {
+    marginTop: 14,
+    color: '#18864B',
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '700',
+  },
   resultCard: {
     marginTop: 24,
     padding: 18,
@@ -285,6 +466,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#CDE8D9',
+  },
+  editCard: {
+    marginTop: 24,
+    padding: 18,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#D9E1DC',
   },
   resultTitle: {
     color: '#17633F',

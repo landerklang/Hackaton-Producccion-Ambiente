@@ -27,7 +27,14 @@ export default function LoginScreen({ navigation, setIsAuthenticated, setCurrent
       await AsyncStorage.setItem('userToken', response.data.token || 'dummy-token');
       await AsyncStorage.setItem('userRole', role);
       await AsyncStorage.setItem('userHasBusiness', 'false');
-      setCurrentUser({ role, hasBusiness: false });
+      await AsyncStorage.setItem('userData', JSON.stringify(response.data.user || {}));
+      setCurrentUser({
+        id: response.data.user?.id,
+        name: response.data.user?.name,
+        email: response.data.user?.email,
+        role,
+        hasBusiness: false,
+      });
       setIsAuthenticated(true);
       navigation.getRoot()?.reset({
         index: 0,

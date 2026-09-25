@@ -31,7 +31,14 @@ export default function RegisterScreen({ navigation, setIsAuthenticated, setCurr
       await AsyncStorage.setItem('userToken', response.data.token || 'dummy-token');
       await AsyncStorage.setItem('userRole', normalizedRole);
       await AsyncStorage.setItem('userHasBusiness', 'false');
-      setCurrentUser({ role: normalizedRole, hasBusiness: false });
+      await AsyncStorage.setItem('userData', JSON.stringify(response.data.user || {}));
+      setCurrentUser({
+        id: response.data.user?.id,
+        name: response.data.user?.name || name.trim(),
+        email: response.data.user?.email || email.trim().toLowerCase(),
+        role: normalizedRole,
+        hasBusiness: false,
+      });
       setIsAuthenticated(true);
 
       navigation.getRoot()?.reset({

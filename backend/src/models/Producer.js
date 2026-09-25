@@ -36,10 +36,14 @@ const producerSchema = new mongoose.Schema(
       enum: ['draft', 'published', 'archived'],
       default: 'draft',
     },
+    aiGuide: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
     ownerUserId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      default: null,
+      default: undefined,
     },
   },
   { timestamps: true }
@@ -50,7 +54,11 @@ producerSchema.index({ category: 1, status: 1 });
 producerSchema.index({ name: 'text', description: 'text' });
 producerSchema.index(
   { ownerUserId: 1 },
-  { unique: true, partialFilterExpression: { ownerUserId: { $type: 'objectId' } } },
+  {
+    unique: true,
+    sparse: true,
+    partialFilterExpression: { ownerUserId: { $type: 'objectId' } },
+  },
 );
 
 module.exports = mongoose.model('Producer', producerSchema);

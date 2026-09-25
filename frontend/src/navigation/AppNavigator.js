@@ -61,7 +61,9 @@ function MainNavigator({ setIsAuthenticated, currentUser, setCurrentUser }) {
       <MainStack.Screen name="Profile">
         {(props) => <ProfileScreen {...props} setIsAuthenticated={setIsAuthenticated} currentUser={currentUser} setCurrentUser={setCurrentUser} />}
       </MainStack.Screen>
-      <MainStack.Screen name="AIPanel" component={AIPanelScreen} options={{ title: 'Catálogo con IA' }} />
+      <MainStack.Screen name="AIPanel">
+        {(props) => <AIPanelScreen {...props} currentUser={currentUser} />}
+      </MainStack.Screen>
     </MainStack.Navigator>
   );
 }
