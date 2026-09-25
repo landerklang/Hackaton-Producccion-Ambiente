@@ -2,6 +2,7 @@ import React from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import LandingScreen from "../screens/LandingScreen";
+import AuthScreen from "../screens/AuthScreen";
 import HomeScreen from "../screens/HomeScreen";
 import AIPanelScreen from "../screens/AIPanelScreen";
 
@@ -22,12 +23,25 @@ function Navigator() {
       <Stack.Screen name="Landing" options={{ headerShown: false }}>
         {({ navigation }) => (
           <LandingScreen
-            onBuyPress={() => navigation.navigate("Home")}
-            onSellPress={() => navigation.navigate("AIPanel")}
-            onLoginPress={() => navigation.navigate("Home")}
+            onBuyPress={() =>
+              navigation.navigate("Auth", { mode: "register", role: "client" })
+            }
+            onSellPress={() =>
+              navigation.navigate("Auth", {
+                mode: "register",
+                role: "producer",
+              })
+            }
+            onLoginPress={() => navigation.navigate("Auth", { mode: "login" })}
           />
         )}
       </Stack.Screen>
+
+      <Stack.Screen
+        name="Auth"
+        component={AuthScreen}
+        options={{ title: "Autenticación" }}
+      />
 
       <Stack.Screen
         name="Home"
