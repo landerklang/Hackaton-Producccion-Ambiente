@@ -45,7 +45,7 @@ function Navigator() {
 
       <Stack.Screen
         name="AuthEntry"
-        component={AuthEntryScreen}
+        component={AuthScreen}
         options={{ title: "Hub Productivo" }}
       />
       <Stack.Screen

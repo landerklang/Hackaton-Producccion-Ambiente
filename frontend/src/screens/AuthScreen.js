@@ -3,6 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -12,7 +13,8 @@ import {
   View,
 } from "react-native";
 
-const API_URL = "http://10.0.2.2:3000/api/auth";
+const API_HOST = Platform.OS === "android" ? "10.0.2.2" : "localhost";
+const API_URL = `http://${API_HOST}:3000/api/auth`;
 const GREEN = "#2D7A4F";
 const DARK_GREEN = "#17633F";
 const BACKGROUND = "#F5F7F6";
