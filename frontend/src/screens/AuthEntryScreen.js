@@ -5,7 +5,7 @@ export default function AuthEntryScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.card}>
-        <Text style={styles.eyebrow}>Hub Productivo</Text>
+        <Text style={styles.eyebrow}>HUB PRODUCTIVO</Text>
         <Text style={styles.title}>Conectá producción local con clientes cerca tuyo</Text>
         <Text style={styles.subtitle}>
           Viví la experiencia de vender, descubrir y empezar con ayuda de IA.
@@ -26,7 +26,6 @@ export default function AuthEntryScreen({ navigation }) {
         >
           <Text style={styles.secondaryButtonText}>Crear cuenta</Text>
         </Pressable>
-
       </View>
     </SafeAreaView>
   );
@@ -35,22 +34,25 @@ export default function AuthEntryScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#242424',
+    paddingHorizontal: 20,
+    paddingVertical: 24,
     justifyContent: 'center',
-    backgroundColor: '#F5F7F6',
-    padding: 20,
   },
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
+    width: '100%',
+    maxWidth: 450,
+    alignSelf: 'center',
+    flex: 1,
+    justifyContent: 'center',
+    backgroundColor: '#2E2E2E',
+    borderRadius: 20,
     padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#555555',
   },
   eyebrow: {
-    color: '#18864B',
+    color: '#C89F7A',
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.7,
@@ -58,21 +60,21 @@ const styles = StyleSheet.create({
   },
   title: {
     marginTop: 12,
-    color: '#172033',
+    color: '#FFFFFF',
     fontSize: 28,
     fontWeight: '800',
     lineHeight: 34,
   },
   subtitle: {
     marginTop: 12,
-    color: '#667085',
+    color: '#D0D0D0',
     fontSize: 15,
     lineHeight: 22,
   },
   primaryButton: {
     marginTop: 22,
-    backgroundColor: '#18864B',
-    borderRadius: 12,
+    backgroundColor: '#C89F7A',
+    borderRadius: 8,
     paddingVertical: 14,
     alignItems: 'center',
   },
@@ -83,20 +85,20 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     marginTop: 12,
-    backgroundColor: '#E7F3EB',
-    borderRadius: 12,
+    backgroundColor: '#3A3A3A',
+    borderRadius: 8,
     paddingVertical: 14,
     alignItems: 'center',
   },
   secondaryButtonPressed: {
-    backgroundColor: '#D7EEDD',
+    backgroundColor: '#4B4B4B',
   },
   secondaryButtonText: {
-    color: '#0F5F38',
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '800',
   },
   buttonPressed: {
-    backgroundColor: '#12683A',
+    backgroundColor: '#B8885C',
   },
 });

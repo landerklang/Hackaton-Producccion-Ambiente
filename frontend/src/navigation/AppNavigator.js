@@ -8,26 +8,38 @@ import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import BuyerFormScreen from '../screens/BuyerFormScreen';
 import ProducerFormScreen from '../screens/ProducerFormScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 
-const Stack = createNativeStackNavigator();
+const RootStack = createNativeStackNavigator();
+const AuthStack = createNativeStackNavigator();
+const MainStack = createNativeStackNavigator();
 
-function Navigator() {
+function AuthNavigator({ setIsAuthenticated }) {
   return (
-    <Stack.Navigator
+    <AuthStack.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: '#F5F7F6' },
-        headerTintColor: '#172033',
-        headerTitleStyle: { fontWeight: '800' },
-        headerShadowVisible: false,
-        contentStyle: { backgroundColor: '#F5F7F6' },
+        headerShown: false,
       }}
     >
-      <Stack.Screen
-        name="AuthEntry"
-        component={AuthEntryScreen}
-        options={{ title: 'Hub Productivo' }}
-      />
-      <Stack.Screen
+      <AuthStack.Screen name="AuthEntry" component={AuthEntryScreen} />
+      <AuthStack.Screen name="Login">
+        {(props) => <LoginScreen {...props} setIsAuthenticated={setIsAuthenticated} />}
+      </AuthStack.Screen>
+      <AuthStack.Screen name="Register">
+        {(props) => <RegisterScreen {...props} setIsAuthenticated={setIsAuthenticated} />}
+      </AuthStack.Screen>
+    </AuthStack.Navigator>
+  );
+}
+
+function MainNavigator({ setIsAuthenticated }) {
+  return (
+    <MainStack.Navigator
+      screenOptions={{
+        headerShown: false,
+      }}
+    >
+      <MainStack.Screen
         name="Home"
         component={HomeScreen}
         options={({ navigation }) => ({
@@ -40,12 +52,29 @@ function Navigator() {
           ),
         })}
       />
-      <Stack.Screen name="Login" component={LoginScreen} options={{ title: 'Ingresar' }} />
-      <Stack.Screen name="Register" component={RegisterScreen} options={{ title: 'Crear cuenta' }} />
-      <Stack.Screen name="BuyerForm" component={BuyerFormScreen} options={{ title: 'Perfil del comprador' }} />
-      <Stack.Screen name="ProducerForm" component={ProducerFormScreen} options={{ title: 'Perfil del productor' }} />
-      <Stack.Screen name="AIPanel" component={AIPanelScreen} options={{ title: 'Catálogo con IA' }} />
-    </Stack.Navigator>
+      <MainStack.Screen name="BuyerForm" component={BuyerFormScreen} options={{ title: 'Perfil del comprador' }} />
+      <MainStack.Screen name="ProducerForm" component={ProducerFormScreen} options={{ title: 'Perfil del productor' }} />
+      <MainStack.Screen name="Profile">
+        {(props) => <ProfileScreen {...props} setIsAuthenticated={setIsAuthenticated} />}
+      </MainStack.Screen>
+      <MainStack.Screen name="AIPanel" component={AIPanelScreen} options={{ title: 'Catálogo con IA' }} />
+    </MainStack.Navigator>
+  );
+}
+
+function Navigator({ isAuthenticated, setIsAuthenticated }) {
+  return (
+    <RootStack.Navigator screenOptions={{ headerShown: false }}>
+      {isAuthenticated ? (
+        <RootStack.Screen name="Main">
+          {(props) => <MainNavigator {...props} setIsAuthenticated={setIsAuthenticated} />}
+        </RootStack.Screen>
+      ) : (
+        <RootStack.Screen name="Auth">
+          {(props) => <AuthNavigator {...props} setIsAuthenticated={setIsAuthenticated} />}
+        </RootStack.Screen>
+      )}
+    </RootStack.Navigator>
   );
 }
 
