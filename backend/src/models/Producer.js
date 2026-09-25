@@ -9,31 +9,48 @@ const producerSchema = new mongoose.Schema(
     category: {
       type: String,
       required: true,
+      trim: true,
     },
-    whatsappNumber: {
+    description: {
       type: String,
-      required: true,
+      trim: true,
     },
-    passwordHash: {
+    profileText: {
       type: String,
-      required: true,
+      trim: true,
     },
+    whatsappNumber: String,
+    instagram: String,
     addressText: String,
     location: {
       type: {
         type: String,
         enum: ['Point'],
-        required: true,
       },
       coordinates: {
         type: [Number],
-        required: true,
       },
+    },
+    status: {
+      type: String,
+      enum: ['draft', 'published', 'archived'],
+      default: 'draft',
+    },
+    ownerUserId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
     },
   },
   { timestamps: true }
 );
 
 producerSchema.index({ location: '2dsphere' });
+producerSchema.index({ category: 1, status: 1 });
+producerSchema.index({ name: 'text', description: 'text' });
+producerSchema.index(
+  { ownerUserId: 1 },
+  { unique: true, partialFilterExpression: { ownerUserId: { $type: 'objectId' } } },
+);
 
 module.exports = mongoose.model('Producer', producerSchema);
